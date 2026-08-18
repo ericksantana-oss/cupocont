@@ -1,0 +1,140 @@
+@import url("https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;700&family=Boldonse&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens do CupolaOS — HSL sem hsl() em volta, para o Tailwind compor opacidade. */
+:root {
+  --papel: 60 11% 97%;
+  --carta: 0 0% 100%;
+  --tinta: 150 18% 12%;
+  --tinta-2: 145 8% 40%;
+  --tinta-3: 144 7% 57%;
+  --linha: 90 11% 89%;
+  --linha-2: 90 13% 94%;
+  --mata: 145 35% 30%;
+  --salvia: 130 25% 55%;
+  --poco: 164 100% 7%;
+  --neon: 78 95% 51%;
+  --bruma: 120 20% 75%;
+  --alerta: 38 84% 45%;
+  --risco: 4 68% 48%;
+}
+
+body {
+  background-color: hsl(var(--papel));
+  color: hsl(var(--tinta));
+  font-family: "Funnel Display", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Título de tela: peso 500, entrelinhamento apertado — aspecto de produto. */
+.display {
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+/* Título de impacto: só para telas de entrada/capa, com parcimônia. */
+.editorial {
+  font-family: "Boldonse", "Funnel Display", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* Rótulo: diz onde você está sem ocupar espaço. */
+.rotulo {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--tinta-3));
+}
+
+/* Cartão: superfície de conteúdo. Raio maior que o dos controles que contém. */
+.cartao {
+  background-color: hsl(var(--carta));
+  border: 1px solid hsl(var(--linha));
+  border-radius: 18px;
+  box-shadow: 0 1px 2px hsl(150 18% 12% / 0.04), 0 6px 16px hsl(145 35% 30% / 0.1);
+}
+
+/* ---------- Superfícies ---------- */
+/* Cada uma diz onde a pessoa está. Não inventar gradiente novo fora daqui. */
+
+.sup-campo {
+  background-image:
+    radial-gradient(105% 78% at 10% 6%, #d3ee63 0%, rgba(211, 238, 99, 0) 52%),
+    radial-gradient(85% 72% at 88% 12%, #a9cfde 0%, rgba(169, 207, 222, 0) 58%),
+    radial-gradient(125% 115% at 82% 98%, #14563a 0%, rgba(20, 86, 58, 0) 62%),
+    radial-gradient(58% 48% at 26% 42%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(152deg, #8cc24f 0%, #2f7a50 52%, #123f2c 100%);
+}
+
+.sup-campo-liso {
+  background-image:
+    radial-gradient(105% 78% at 10% 6%, #d3ee63 0%, rgba(211, 238, 99, 0) 52%),
+    radial-gradient(85% 72% at 88% 12%, #a9cfde 0%, rgba(169, 207, 222, 0) 58%),
+    radial-gradient(125% 115% at 82% 98%, #14563a 0%, rgba(20, 86, 58, 0) 62%),
+    linear-gradient(152deg, #8cc24f 0%, #2f7a50 52%, #123f2c 100%);
+}
+
+.sup-poco {
+  background-image:
+    radial-gradient(72% 58% at 22% 0%, rgba(112, 169, 121, 0.34) 0%, rgba(112, 169, 121, 0) 70%),
+    radial-gradient(50% 44% at 88% 96%, rgba(176, 249, 10, 0.13) 0%, rgba(176, 249, 10, 0) 72%),
+    linear-gradient(168deg, #063127 0%, #00261c 60%, #001912 100%);
+}
+
+.sup-bruma {
+  background-image:
+    radial-gradient(90% 80% at 18% 10%, #edf3e2 0%, rgba(237, 243, 226, 0) 60%),
+    radial-gradient(80% 70% at 90% 88%, #d6e6dc 0%, rgba(214, 230, 220, 0) 60%),
+    linear-gradient(140deg, #f4f6f0 0%, #e4ede4 100%);
+}
+
+.sup-broto {
+  background-image:
+    radial-gradient(74% 64% at 16% 6%, rgba(176, 249, 10, 0.3) 0%, rgba(176, 249, 10, 0) 58%),
+    radial-gradient(64% 58% at 94% 96%, rgba(6, 42, 31, 0.75) 0%, rgba(6, 42, 31, 0) 62%),
+    linear-gradient(145deg, #4e8a63 0%, #2f6b49 52%, #1b4a33 100%);
+}
+
+.sup-neblina {
+  background-image:
+    radial-gradient(75% 70% at 84% 94%, rgba(56, 68, 80, 0.92) 0%, rgba(56, 68, 80, 0) 58%),
+    radial-gradient(52% 48% at 97% 38%, rgba(96, 109, 122, 0.55) 0%, rgba(96, 109, 122, 0) 62%),
+    radial-gradient(88% 78% at 12% 6%, #f1f4f6 0%, rgba(241, 244, 246, 0) 64%),
+    linear-gradient(146deg, #dee4e8 0%, #b7c2ca 46%, #8a97a3 100%);
+}
+
+/* Grão: textura de ruído por cima do gradiente, senão degradê grande vira banda de cor. */
+.grao,
+.grao-sutil,
+.grao-minimo {
+  position: relative;
+}
+
+.grao::after,
+.grao-sutil::after,
+.grao-minimo::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.grao::after {
+  opacity: 0.44;
+}
+.grao-sutil::after {
+  opacity: 0.22;
+}
+.grao-minimo::after {
+  opacity: 0.1;
+}

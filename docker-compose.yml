@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cupocont-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cupocont
+      POSTGRES_PASSWORD: cupocont
+      POSTGRES_DB: cupocont
+    ports:
+      - "5432:5432"
+    volumes:
+      - cupocont_pgdata:/var/lib/postgresql/data
+
+volumes:
+  cupocont_pgdata:

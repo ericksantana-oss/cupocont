@@ -1,0 +1,287 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+enum Role {
+  ADMIN
+  WRITER
+}
+
+enum DocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum ThemeStatus {
+  SUGGESTED
+  SELECTED
+  DISCARDED
+}
+
+enum TextStatus {
+  DRAFT
+  APPROVED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(WRITER)
+  createdAt    DateTime @default(now())
+
+  clientAccess    ClientAccess[]
+  ownedClients    Client[]         @relation("ClientOwner")
+  briefings       Briefing[]       @relation("BriefingCreator")
+  texts           GeneratedText[]  @relation("TextEditor")
+  sessions        Session[]
+  activityLogs    ActivityLog[]
+  marketingEmails MarketingEmail[] @relation("EmailCreator")
+
+  @@map("users")
+}
+
+// sessão de login: cookie httpOnly guarda apenas o id/token, tudo mais fica no banco
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// redator <-> cliente é N:N (um redator pode atender vários clientes)
+model ClientAccess {
+  id       String @id @default(cuid())
+  userId   String
+  clientId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@map("client_access")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  niche     String // nicho/segmento, usado na busca de palavras-chave
+  ownerId   String? // redator principal responsável pelo cliente, para o painel admin
+  createdAt DateTime @default(now())
+
+  owner          User?            @relation("ClientOwner", fields: [ownerId], references: [id])
+  access         ClientAccess[]
+  documents      ClientDocument[]
+  briefings      Briefing[]
+  keywordReports KeywordReport[]
+  themes         ContentTheme[]
+  activityLogs   ActivityLog[]
+  emailFlows     EmailFlow[]
+  marketingEmails MarketingEmail[]
+
+  @@map("clients")
+}
+
+model ClientDocument {
+  id           String         @id @default(cuid())
+  clientId     String
+  fileName     String
+  fileType     String // pdf | docx | txt | link
+  originalPath String? // caminho no disco (MVP)
+  sourceUrl    String? // se for um link de referência
+  status       DocumentStatus @default(PROCESSING)
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+
+  client Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  chunks DocumentChunk[]
+
+  @@map("client_documents")
+}
+
+// cada chunk de texto vira uma linha com seu embedding (pgvector)
+model DocumentChunk {
+  id         String                 @id @default(cuid())
+  documentId String
+  clientId   String // duplicado do documento pai para filtrar direto sem join no retrieve
+  content    String
+  embedding  Unsupported("vector(384)")? // dimensão do modelo local all-MiniLM-L6-v2
+  chunkIndex Int
+  createdAt  DateTime               @default(now())
+
+  document ClientDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("document_chunks")
+}
+
+model KeywordReport {
+  id        String   @id @default(cuid())
+  clientId  String
+  period    String // "2026-08"
+  keywords  Json // [{ term, volume, trend }]
+  source    String   @default("mock") // mock | google_trends | semrush | ...
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("keyword_reports")
+}
+
+model Briefing {
+  id           String   @id @default(cuid())
+  clientId     String
+  period       String // "2026-08"
+  goals        String
+  campaigns    String?
+  keyDates     String?
+  highlights   String? // produtos/temas em destaque
+  restrictions String?
+  createdById  String
+  createdAt    DateTime @default(now())
+
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User           @relation("BriefingCreator", fields: [createdById], references: [id])
+  themes    ContentTheme[]
+
+  @@unique([clientId, period])
+  @@map("briefings")
+}
+
+model ContentTheme {
+  id            String      @id @default(cuid())
+  clientId      String
+  briefingId    String
+  title         String
+  justification String // por que a IA sugeriu esse tema
+  status        ThemeStatus @default(SUGGESTED)
+  createdAt     DateTime    @default(now())
+
+  client   Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefing Briefing        @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  texts    GeneratedText[]
+
+  @@map("content_themes")
+}
+
+model GeneratedText {
+  id         String     @id @default(cuid())
+  themeId    String
+  version    Int        @default(1)
+  content    String
+  status     TextStatus @default(DRAFT)
+  editedById String
+  createdAt  DateTime   @default(now())
+
+  theme    ContentTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  editedBy User         @relation("TextEditor", fields: [editedById], references: [id])
+
+  @@map("generated_texts")
+}
+
+enum ActivityAction {
+  CONTEXT_UPDATED
+  KEYWORDS_RESEARCHED
+  BRIEFING_SAVED
+  THEMES_GENERATED
+  THEME_SELECTED
+  THEME_DISCARDED
+  TEXT_GENERATED
+  TEXT_EDITED
+  TEXT_APPROVED
+}
+
+// Trilha de ações usada pelo painel admin: "o que aconteceu, quem fez, quando".
+model ActivityLog {
+  id        String         @id @default(cuid())
+  clientId  String
+  userId    String
+  action    ActivityAction
+  detail    String? // texto curto legível, ex: título do tema ou do documento
+  period    String? // "2026-08" quando a ação é ligada a um mês específico
+  createdAt DateTime       @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+enum MarketingEmailType {
+  PONTUAL
+  FLUXO
+}
+
+enum EmailStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+}
+
+// Agrupa e-mails de um mesmo fluxo (nutrição, lançamento, etc.) só para
+// organização/histórico — o planejamento do fluxo em si é feito fora da ferramenta.
+model EmailFlow {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  createdAt DateTime @default(now())
+
+  client Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  emails MarketingEmail[]
+
+  @@map("email_flows")
+}
+
+model MarketingEmail {
+  id       String             @id @default(cuid())
+  clientId String
+  flowId   String?
+  type     MarketingEmailType
+  name     String // nome do e-mail ou da etapa do fluxo
+  briefing String // contexto/mini-briefing livre fornecido pelo redator
+  status   EmailStatus        @default(DRAFT)
+
+  // gerado pela IA, editável e regenerável em blocos
+  subjectA  String?
+  subjectB  String?
+  preheader String?
+  hasCard   Boolean @default(false)
+  cardText  String?
+  body      String?
+  ctaText   String?
+  farewell  String?
+
+  // preenchimento manual do redator, a IA não inventa esses dados
+  audience        String? // base que será impactada
+  senderName      String?
+  senderEmail     String?
+  ctaColor        String?
+  imagesFolderUrl String? // link do drive com imagens
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  flow      EmailFlow? @relation(fields: [flowId], references: [id], onDelete: SetNull)
+  createdBy User       @relation("EmailCreator", fields: [createdById], references: [id])
+
+  @@map("marketing_emails")
+}

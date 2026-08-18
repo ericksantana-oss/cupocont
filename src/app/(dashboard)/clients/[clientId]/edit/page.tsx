@@ -1,0 +1,65 @@
+import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth/guards";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { updateClientAction, listWriters } from "../../actions";
+import { DeleteClientButton } from "@/components/client/DeleteClientButton";
+
+export default async function EditClientPage({ params }: { params: Promise<{ clientId: string }> }) {
+  await requireAdmin();
+  const { clientId } = await params;
+
+  const [client, writers] = await Promise.all([db.client.findUnique({ where: { id: clientId } }), listWriters()]);
+  if (!client) notFound();
+
+  const action = updateClientAction.bind(null, clientId);
+
+  return (
+    <div className="mx-auto max-w-md px-6 py-10">
+      <h1 className="display text-3xl">Editar cliente</h1>
+
+      <form action={action} className="cartao mt-6 space-y-4 p-6">
+        <div className="space-y-2">
+          <Label htmlFor="name">Nome do cliente</Label>
+          <Input id="name" name="name" defaultValue={client.name} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="niche">Nicho / segmento</Label>
+          <Input id="niche" name="niche" defaultValue={client.niche} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="ownerId">Responsável</Label>
+          <select
+            id="ownerId"
+            name="ownerId"
+            defaultValue={client.ownerId ?? ""}
+            className="block w-full rounded-controle border border-linha bg-carta px-3 py-1.5 text-sm shadow-carta"
+          >
+            <option value="">Sem responsável definido</option>
+            {writers.map((writer) => (
+              <option key={writer.id} value={writer.id}>
+                {writer.name} {writer.role === "ADMIN" ? "(Admin)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <Button type="submit">Salvar alterações</Button>
+      </form>
+
+      <div className="cartao mt-6 space-y-3 border-risco/30 p-6">
+        <div>
+          <h2 className="text-sm font-semibold text-risco">Excluir cliente</h2>
+          <p className="mt-1 text-xs text-tinta-3">
+            Remove o cliente e tudo ligado a ele — documentos, briefings, temas e textos gerados. Não tem volta.
+          </p>
+        </div>
+        <DeleteClientButton clientId={clientId} clientName={client.name} />
+      </div>
+    </div>
+  );
+}
