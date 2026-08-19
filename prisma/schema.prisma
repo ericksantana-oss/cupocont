@@ -92,8 +92,25 @@ model Client {
   activityLogs   ActivityLog[]
   emailFlows     EmailFlow[]
   marketingEmails MarketingEmail[]
+  instagramAccount InstagramAccount?
 
   @@map("clients")
+}
+
+// Conexão do cliente com a conta comercial do Instagram, via Meta Graph API.
+model InstagramAccount {
+  id              String    @id @default(cuid())
+  clientId        String    @unique
+  igUserId        String // id da conta comercial do Instagram
+  igUsername      String?
+  pageAccessToken String // token da página do Facebook vinculada, não expira enquanto a conexão for válida
+  connectedAt     DateTime  @default(now())
+  lastSyncedAt    DateTime?
+  summary         String? // resumo em texto dos posts/metricas mais recentes, usado como contexto para a IA
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("instagram_accounts")
 }
 
 model ClientDocument {

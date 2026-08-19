@@ -12,6 +12,7 @@ import type { Keyword } from "@/lib/keywords/provider";
 import { buildClientKnowledgeContext, briefingSearchQuery } from "@/lib/ai/contextBuilder";
 import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemeText } from "@/lib/ai/prompts/generateText";
+import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR ?? "./storage/uploads";
 
@@ -101,6 +102,46 @@ export async function addManualKeywordAction(clientId: string, period: string, f
   revalidateClient(clientId);
 }
 
+// ---------- Instagram (Meta Graph API) ----------
+
+export async function disconnectInstagramAction(clientId: string) {
+  await requireClientAccess(clientId);
+  await db.instagramAccount.delete({ where: { clientId } }).catch(() => null);
+  revalidateClient(clientId);
+}
+
+export async function syncInstagramAction(clientId: string) {
+  const user = await requireClientAccess(clientId);
+  const account = await db.instagramAccount.findUniqueOrThrow({ where: { clientId } });
+
+  const [topMedia, profile] = await Promise.all([
+    getTopMedia(account.igUserId, account.pageAccessToken),
+    getProfileMetrics(account.igUserId, account.pageAccessToken),
+  ]);
+
+  const summaryLines = [
+    `Perfil: @${account.igUsername ?? "desconhecido"}`,
+    `Seguidores: ${profile.followers_count ?? "não disponível"}`,
+    `Total de posts: ${profile.media_count ?? "não disponível"}`,
+    "",
+    "Posts com melhor engajamento recentemente:",
+    ...topMedia.map(
+      (media, i) =>
+        `${i + 1}. (${media.engagement} interações — ${media.like_count ?? 0} curtidas, ${
+          media.comments_count ?? 0
+        } comentários) ${media.caption ? media.caption.slice(0, 200) : "(sem legenda)"}`
+    ),
+  ];
+
+  await db.instagramAccount.update({
+    where: { clientId },
+    data: { summary: summaryLines.join("\n"), lastSyncedAt: new Date() },
+  });
+
+  await logActivity({ clientId, userId: user.id, action: "CONTEXT_UPDATED", detail: "Métricas do Instagram atualizadas" });
+  revalidateClient(clientId);
+}
+
 // ---------- Briefing ----------
 
 export async function upsertBriefingAction(clientId: string, period: string, formData: FormData) {
@@ -139,7 +180,11 @@ export async function generateThemesAction(clientId: string, briefingId: string)
     orderBy: { createdAt: "desc" },
   });
 
-  const clientKnowledgeContext = await buildClientKnowledgeContext(clientId, briefingSearchQuery(briefing));
+  const instagramAccount = await db.instagramAccount.findUnique({ where: { clientId } });
+  const ragContext = await buildClientKnowledgeContext(clientId, briefingSearchQuery(briefing));
+  const clientKnowledgeContext = instagramAccount?.summary
+    ? `${ragContext}\n\n[Desempenho recente no Instagram]\n${instagramAccount.summary}`
+    : ragContext;
 
   const suggested = await generateThemes({
     client,

@@ -1,0 +1,66 @@
+import { Instagram, RefreshCw, Unlink } from "lucide-react";
+import { db } from "@/lib/db";
+import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/formatDate";
+import { syncInstagramAction, disconnectInstagramAction } from "@/app/(dashboard)/clients/[clientId]/actions";
+
+export async function InstagramCard({ clientId }: { clientId: string }) {
+  const account = await db.instagramAccount.findUnique({ where: { clientId } });
+
+  if (!account) {
+    return (
+      <div className="cartao p-6">
+        <h2 className="text-lg font-semibold">Instagram</h2>
+        <p className="mt-1 text-sm text-tinta-3">
+          Conecte a conta comercial do Instagram do cliente para trazer os posts com melhor engajamento e métricas
+          básicas como contexto extra para a geração de temas.
+        </p>
+        <a href={`/api/meta/connect?clientId=${clientId}`}>
+          <Button type="button" className="mt-4">
+            <Instagram className="mr-1.5 size-4" strokeWidth={1.5} />
+            Conectar Instagram
+          </Button>
+        </a>
+      </div>
+    );
+  }
+
+  const syncAction = syncInstagramAction.bind(null, clientId);
+  const disconnectAction = disconnectInstagramAction.bind(null, clientId);
+
+  return (
+    <div className="cartao p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Instagram conectado</h2>
+          <p className="mt-1 text-sm text-tinta-3">
+            @{account.igUsername ?? "conta conectada"}
+            {account.lastSyncedAt && ` — última atualização ${formatDateTime(account.lastSyncedAt)}`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <form action={syncAction}>
+            <Button type="submit" variant="secondary">
+              <RefreshCw className="mr-1.5 size-4" strokeWidth={1.5} />
+              Atualizar métricas agora
+            </Button>
+          </form>
+          <form action={disconnectAction}>
+            <Button type="submit" variant="ghost">
+              <Unlink className="mr-1.5 size-4" strokeWidth={1.5} />
+              Desconectar
+            </Button>
+          </form>
+        </div>
+      </div>
+
+      {account.summary ? (
+        <pre className="sup-poco mt-4 whitespace-pre-wrap rounded-controle p-4 text-sm">{account.summary}</pre>
+      ) : (
+        <p className="mt-4 text-sm text-tinta-3">
+          Ainda não há métricas sincronizadas. Clique em &quot;Atualizar métricas agora&quot;.
+        </p>
+      )}
+    </div>
+  );
+}

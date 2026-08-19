@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { uploadDocumentAction, deleteDocumentAction } from "@/app/(dashboard)/clients/[clientId]/actions";
+import { InstagramCard } from "@/components/client/InstagramCard";
 
 const STATUS_LABEL: Record<string, string> = {
   PROCESSING: "processando",
@@ -23,6 +24,8 @@ export async function ContextTab({ clientId }: { clientId: string }) {
 
   return (
     <div className="space-y-6">
+      <InstagramCard clientId={clientId} />
+
       <div className="cartao p-6">
         <h2 className="text-lg font-semibold">Base de conhecimento do cliente</h2>
         <p className="mt-1 text-sm text-tinta-3">
