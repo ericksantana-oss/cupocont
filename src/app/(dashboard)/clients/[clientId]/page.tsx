@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BookOpen, GitBranch, Mail, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, BookOpen, GitBranch, Mail, Pencil, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
@@ -31,14 +31,18 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
       </div>
       <p className="mt-1 text-sm text-tinta-3">{client.niche}</p>
 
-      <Link
-        href={`/clients/${clientId}/contexto`}
-        className="mt-4 inline-flex items-center text-sm font-medium text-mata"
-      >
-        <BookOpen className="mr-1.5 size-4" strokeWidth={1.5} />
-        Contexto do cliente (base de conhecimento + redes conectadas)
-        <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+        <Link href={`/clients/${clientId}/contexto`} className="inline-flex items-center text-sm font-medium text-mata">
+          <BookOpen className="mr-1.5 size-4" strokeWidth={1.5} />
+          Contexto do cliente (base de conhecimento + redes conectadas)
+          <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
+        </Link>
+        <Link href={`/clients/${clientId}/dashboard`} className="inline-flex items-center text-sm font-medium text-mata">
+          <BarChart3 className="mr-1.5 size-4" strokeWidth={1.5} />
+          Dashboard de resultados
+          <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
+        </Link>
+      </div>
 
       <p className="mt-10 rotulo">O que você vai produzir?</p>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">

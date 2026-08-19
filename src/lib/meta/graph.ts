@@ -138,3 +138,97 @@ export async function getProfileMetrics(igUserId: string, pageAccessToken: strin
   });
   return data;
 }
+
+// Totais de conta pra um período (usa metric_type=total_value, que soma o intervalo inteiro).
+export async function getAccountTotals(
+  igUserId: string,
+  pageAccessToken: string,
+  sinceUnix: number,
+  untilUnix: number
+): Promise<{ reach: number; profileViews: number }> {
+  try {
+    const data = await graphGet<{ data: { name: string; total_value?: { value: number } }[] }>(
+      `/${igUserId}/insights`,
+      {
+        metric: "reach,profile_views",
+        period: "day",
+        metric_type: "total_value",
+        since: String(sinceUnix),
+        until: String(untilUnix),
+        access_token: pageAccessToken,
+      }
+    );
+    const byName = Object.fromEntries(data.data.map((m) => [m.name, m.total_value?.value ?? 0]));
+    return { reach: byName.reach ?? 0, profileViews: byName.profile_views ?? 0 };
+  } catch {
+    return { reach: 0, profileViews: 0 };
+  }
+}
+
+export interface PeriodMedia {
+  id: string;
+  caption?: string;
+  media_type: string;
+  timestamp: string;
+  permalink: string;
+  like_count: number;
+  comments_count: number;
+  reach: number | null;
+  saved: number | null;
+  shares: number | null;
+}
+
+export async function getMediaInPeriod(
+  igUserId: string,
+  pageAccessToken: string,
+  sinceUnix: number,
+  untilUnix: number
+): Promise<PeriodMedia[]> {
+  const data = await graphGet<{ data: InstagramMedia[] }>(`/${igUserId}/media`, {
+    fields: "caption,like_count,comments_count,timestamp,permalink,media_type",
+    since: String(sinceUnix),
+    until: String(untilUnix),
+    limit: "100",
+    access_token: pageAccessToken,
+  });
+
+  return Promise.all(
+    data.data.map(async (media) => {
+      const insights = await getMediaInsightsSafely(media.id, pageAccessToken);
+      return {
+        id: media.id,
+        caption: media.caption,
+        media_type: media.media_type,
+        timestamp: media.timestamp,
+        permalink: media.permalink,
+        like_count: media.like_count ?? 0,
+        comments_count: media.comments_count ?? 0,
+        reach: insights.reach,
+        saved: insights.saved,
+        shares: insights.shares,
+      };
+    })
+  );
+}
+
+// Tenta um conjunto de métricas mais completo primeiro; se a conta/tipo de mídia
+// não suportar alguma delas, cai pra um conjunto menor em vez de falhar tudo.
+async function getMediaInsightsSafely(
+  mediaId: string,
+  pageAccessToken: string
+): Promise<{ reach: number | null; saved: number | null; shares: number | null }> {
+  const attempts = ["reach,saved,shares", "reach,saved", "reach"];
+  for (const metric of attempts) {
+    try {
+      const data = await graphGet<{ data: { name: string; values: { value: number }[] }[] }>(
+        `/${mediaId}/insights`,
+        { metric, access_token: pageAccessToken }
+      );
+      const byName = Object.fromEntries(data.data.map((m) => [m.name, m.values?.[0]?.value ?? 0]));
+      return { reach: byName.reach ?? null, saved: byName.saved ?? null, shares: byName.shares ?? null };
+    } catch {
+      continue;
+    }
+  }
+  return { reach: null, saved: null, shares: null };
+}
