@@ -26,6 +26,13 @@ function extensionToFileType(fileName: string): string {
   throw new Error(`Formato não suportado: .${ext} (use PDF, DOCX ou TXT)`);
 }
 
+function sanitizeForStorageKey(fileName: string): string {
+  return fileName
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // remove acentos (marcas de combinação após normalize)
+    .replace(/[^a-zA-Z0-9.-]+/g, "_");
+}
+
 const FILE_TYPE_CONTENT_TYPE: Record<string, string> = {
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -43,7 +50,7 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
     const fileType = extensionToFileType(file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const storedName = `${randomUUID()}-${file.name}`;
+    const storedName = `${randomUUID()}-${sanitizeForStorageKey(file.name)}`;
     const objectPath = `${clientId}/${storedName}`;
     await uploadClientFile(objectPath, buffer, FILE_TYPE_CONTENT_TYPE[fileType]);
 
