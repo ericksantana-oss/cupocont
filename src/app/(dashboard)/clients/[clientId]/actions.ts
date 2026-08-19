@@ -1,6 +1,5 @@
 "use server";
 
-import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
@@ -13,8 +12,7 @@ import { buildClientKnowledgeContext, briefingSearchQuery } from "@/lib/ai/conte
 import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemeText } from "@/lib/ai/prompts/generateText";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
-
-const UPLOADS_DIR = process.env.UPLOADS_DIR ?? "./storage/uploads";
+import { uploadClientFile, deleteClientFile } from "@/lib/storage";
 
 function revalidateClient(clientId: string) {
   revalidatePath(`/clients/${clientId}`);
@@ -39,14 +37,12 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
     const fileType = extensionToFileType(file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const clientDir = path.join(UPLOADS_DIR, clientId);
-    await mkdir(clientDir, { recursive: true });
     const storedName = `${randomUUID()}-${file.name}`;
-    const fullPath = path.join(clientDir, storedName);
-    await writeFile(fullPath, buffer);
+    const objectPath = `${clientId}/${storedName}`;
+    await uploadClientFile(objectPath, buffer);
 
     const document = await db.clientDocument.create({
-      data: { clientId, fileName: file.name, fileType, originalPath: fullPath, status: "PROCESSING" },
+      data: { clientId, fileName: file.name, fileType, originalPath: objectPath, status: "PROCESSING" },
     });
 
     await processDocument(document.id, { buffer, fileType });
@@ -68,7 +64,8 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
 
 export async function deleteDocumentAction(clientId: string, documentId: string) {
   await requireClientAccess(clientId);
-  await db.clientDocument.delete({ where: { id: documentId } });
+  const document = await db.clientDocument.delete({ where: { id: documentId } });
+  if (document.originalPath) await deleteClientFile(document.originalPath).catch(() => null);
   revalidateClient(clientId);
 }
 
