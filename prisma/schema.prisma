@@ -210,18 +210,27 @@ model ContentTheme {
 }
 
 model GeneratedText {
-  id         String     @id @default(cuid())
-  themeId    String
-  version    Int        @default(1)
-  content    String
-  status     TextStatus @default(DRAFT)
-  editedById String
-  createdAt  DateTime   @default(now())
+  id          String       @id @default(cuid())
+  themeId     String
+  version     Int          @default(1)
+  content     String
+  status      TextStatus   @default(DRAFT)
+  editedById  String
+  createdAt   DateTime     @default(now())
+  mediaFormat MediaFormat?
+  mediaPaths  Json? // caminhos no bucket post-media, na ordem de exibição (carrossel)
 
   theme    ContentTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
   editedBy User         @relation("TextEditor", fields: [editedById], references: [id])
 
   @@map("generated_texts")
+}
+
+enum MediaFormat {
+  IMAGE
+  CAROUSEL
+  REELS
+  VIDEO
 }
 
 enum ActivityAction {

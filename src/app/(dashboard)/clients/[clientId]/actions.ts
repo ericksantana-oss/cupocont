@@ -3,6 +3,7 @@
 import path from "path";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
 import { logActivity } from "@/lib/activity";
@@ -12,7 +13,7 @@ import { buildClientKnowledgeContext, briefingSearchQuery } from "@/lib/ai/conte
 import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemeText } from "@/lib/ai/prompts/generateText";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
-import { uploadClientFile, deleteClientFile } from "@/lib/storage";
+import { uploadClientFile, deleteClientFile, uploadPostMedia, deletePostMedia } from "@/lib/storage";
 
 function revalidateClient(clientId: string) {
   revalidatePath(`/clients/${clientId}`);
@@ -361,6 +362,74 @@ export async function editTextAction(clientId: string, textId: string, formData:
     action: "TEXT_EDITED",
     detail: text.theme.title,
     period: text.theme.briefing.period,
+  });
+  revalidateClient(clientId);
+}
+
+const MEDIA_CONTENT_TYPE: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+};
+
+const FORMAT_LIMITS: Record<string, { min: number; max: number }> = {
+  IMAGE: { min: 1, max: 1 },
+  VIDEO: { min: 1, max: 1 },
+  REELS: { min: 1, max: 1 },
+  CAROUSEL: { min: 2, max: 10 },
+};
+
+export async function uploadTextMediaAction(clientId: string, textId: string, formData: FormData) {
+  await requireClientAccess(clientId);
+
+  const format = String(formData.get("format") ?? "");
+  if (!FORMAT_LIMITS[format]) throw new Error("Formato inválido.");
+
+  const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+  const limits = FORMAT_LIMITS[format];
+  if (files.length < limits.min || files.length > limits.max) {
+    throw new Error(
+      limits.min === limits.max
+        ? `Este formato exige exatamente ${limits.min} arquivo(s).`
+        : `Este formato aceita entre ${limits.min} e ${limits.max} arquivos.`
+    );
+  }
+
+  const mediaPaths: string[] = [];
+  for (const file of files) {
+    const ext = path.extname(file.name).toLowerCase().replace(".", "");
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const objectPath = `${clientId}/${textId}/${randomUUID()}-${sanitizeForStorageKey(file.name)}`;
+    await uploadPostMedia(objectPath, buffer, MEDIA_CONTENT_TYPE[ext]);
+    mediaPaths.push(objectPath);
+  }
+
+  const existing = await db.generatedText.findUniqueOrThrow({ where: { id: textId } });
+  if (existing.mediaPaths) {
+    for (const oldPath of existing.mediaPaths as string[]) await deletePostMedia(oldPath).catch(() => null);
+  }
+
+  await db.generatedText.update({
+    where: { id: textId },
+    data: { mediaFormat: format as never, mediaPaths },
+  });
+
+  revalidateClient(clientId);
+}
+
+export async function removeTextMediaAction(clientId: string, textId: string) {
+  await requireClientAccess(clientId);
+
+  const text = await db.generatedText.findUniqueOrThrow({ where: { id: textId } });
+  if (text.mediaPaths) {
+    for (const oldPath of text.mediaPaths as string[]) await deletePostMedia(oldPath).catch(() => null);
+  }
+
+  await db.generatedText.update({
+    where: { id: textId },
+    data: { mediaFormat: null, mediaPaths: Prisma.DbNull },
   });
   revalidateClient(clientId);
 }

@@ -1,10 +1,23 @@
-import { PenLine, Sparkles } from "lucide-react";
+import { PenLine, Sparkles, Image as ImageIcon, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { generateTextAction, editTextAction, approveTextAction } from "@/app/(dashboard)/clients/[clientId]/actions";
+import {
+  generateTextAction,
+  editTextAction,
+  approveTextAction,
+  uploadTextMediaAction,
+  removeTextMediaAction,
+} from "@/app/(dashboard)/clients/[clientId]/actions";
+
+const FORMAT_LABEL: Record<string, string> = {
+  IMAGE: "Imagem única",
+  CAROUSEL: "Carrossel (2 a 10 imagens)",
+  REELS: "Reels (1 vídeo)",
+  VIDEO: "Vídeo (Facebook)",
+};
 
 export async function TextsTab({ clientId, period }: { clientId: string; period: string }) {
   const briefing = await db.briefing.findUnique({ where: { clientId_period: { clientId, period } } });
@@ -42,7 +55,14 @@ function ThemeTextCard({
   theme: {
     id: string;
     title: string;
-    texts: { id: string; version: number; content: string; status: string }[];
+    texts: {
+      id: string;
+      version: number;
+      content: string;
+      status: string;
+      mediaFormat: string | null;
+      mediaPaths: unknown;
+    }[];
   };
 }) {
   const [latest, ...history] = theme.texts;
@@ -87,10 +107,13 @@ function EditableText({
   text,
 }: {
   clientId: string;
-  text: { id: string; content: string; status: string };
+  text: { id: string; content: string; status: string; mediaFormat: string | null; mediaPaths: unknown };
 }) {
   const editAction = editTextAction.bind(null, clientId, text.id);
   const approveAction = approveTextAction.bind(null, clientId, text.id);
+  const uploadMediaAction = uploadTextMediaAction.bind(null, clientId, text.id);
+  const removeMediaAction = removeTextMediaAction.bind(null, clientId, text.id);
+  const mediaPaths = (text.mediaPaths as string[] | null) ?? [];
 
   return (
     <div className="mt-5 space-y-3">
@@ -103,6 +126,39 @@ function EditableText({
           </Button>
         </div>
       </form>
+
+      <div className="rounded-controle border border-linha p-4">
+        <h4 className="rotulo mb-2">Mídia para publicação</h4>
+        {mediaPaths.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="secondary">{FORMAT_LABEL[text.mediaFormat ?? ""] ?? text.mediaFormat}</Badge>
+            <span className="text-xs text-tinta-3">
+              {mediaPaths.length} arquivo(s) anexado(s)
+            </span>
+            <form action={removeMediaAction}>
+              <Button type="submit" variant="ghost" size="sm">
+                <Trash2 className="mr-1.5 size-4" strokeWidth={1.5} />
+                Remover
+              </Button>
+            </form>
+          </div>
+        ) : (
+          <form action={uploadMediaAction} className="flex flex-wrap items-center gap-2">
+            <select name="format" className="rounded-controle border border-linha bg-carta px-3 py-1 text-sm shadow-carta">
+              {Object.entries(FORMAT_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input type="file" name="files" multiple accept="image/jpeg,image/png,video/mp4,video/quicktime" required />
+            <Button type="submit" size="sm">
+              <ImageIcon className="mr-1.5 size-4" strokeWidth={1.5} />
+              Anexar mídia
+            </Button>
+          </form>
+        )}
+      </div>
 
       {text.status !== "APPROVED" && (
         <form action={approveAction}>
