@@ -12,6 +12,7 @@ datasource db {
 enum Role {
   ADMIN
   WRITER
+  INTERN // acesso de leitura/escrita a todos os squads, mas sem o painel de administração
 }
 
 enum DocumentStatus {
@@ -37,8 +38,10 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(WRITER)
+  squadId      String? // squad "casa" do redator; acesso extra fora do squad passa por ClientAccess
   createdAt    DateTime @default(now())
 
+  squad           Squad?         @relation(fields: [squadId], references: [id], onDelete: SetNull)
   clientAccess    ClientAccess[]
   ownedClients    Client[]         @relation("ClientOwner")
   briefings       Briefing[]       @relation("BriefingCreator")
@@ -64,6 +67,21 @@ model Session {
   @@map("sessions")
 }
 
+// Time/squad da agência — agrupa redatores e clientes. Um redator vê por padrão
+// só os clientes do próprio squad; acesso a clientes de outro squad passa por
+// ClientAccess (liberação pontual), sem precisar mudar de squad.
+model Squad {
+  id        String   @id @default(cuid())
+  name      String
+  logoPath  String? // caminho no bucket público squad-logos
+  createdAt DateTime @default(now())
+
+  members User[]
+  clients Client[]
+
+  @@map("squads")
+}
+
 // redator <-> cliente é N:N (um redator pode atender vários clientes)
 model ClientAccess {
   id       String @id @default(cuid())
@@ -82,9 +100,11 @@ model Client {
   name      String
   niche     String // nicho/segmento, usado na busca de palavras-chave
   ownerId   String? // redator principal responsável pelo cliente, para o painel admin
+  squadId   String? // squad dono do cliente — define quem tem acesso automático
   createdAt DateTime @default(now())
 
   owner          User?            @relation("ClientOwner", fields: [ownerId], references: [id])
+  squad          Squad?           @relation(fields: [squadId], references: [id], onDelete: SetNull)
   access         ClientAccess[]
   documents      ClientDocument[]
   briefings      Briefing[]

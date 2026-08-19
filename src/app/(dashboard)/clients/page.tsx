@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { ArrowRight, Clock, Plus, Search } from "lucide-react";
+import { ArrowRight, Clock, Plus, Search, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
+import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CupolaMark } from "@/components/CupolaMark";
+import { getSquadLogoPublicUrl } from "@/lib/storage";
 import { periodLabel } from "@/lib/periodo";
 import { listAccessibleClients, listRecentClients, listPendingApprovals } from "./actions";
 
@@ -23,10 +25,15 @@ export default async function ClientsPage({
   const user = await requireUser();
   const { q } = await searchParams;
 
-  const [clients, recentClients, pendingApprovals] = await Promise.all([
+  const showSquadPicker = (user.role === "ADMIN" || user.role === "INTERN") && !q;
+
+  const [clients, recentClients, pendingApprovals, squads] = await Promise.all([
     listAccessibleClients(q),
     listRecentClients(),
     listPendingApprovals(),
+    showSquadPicker
+      ? db.squad.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { clients: true } } } })
+      : Promise.resolve([]),
   ]);
   const firstName = user.name.split(" ")[0];
 
@@ -89,34 +96,70 @@ export default async function ClientsPage({
         )}
 
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="rotulo">{q ? `Resultados para "${q}"` : "Todos os clientes"}</h2>
-          {user.role === "ADMIN" && (
-            <Button asChild size="sm">
-              <Link href="/clients/new">
-                <Plus className="mr-1.5 size-4" strokeWidth={1.5} />
-                Novo cliente
+          <h2 className="rotulo">
+            {q ? `Resultados para "${q}"` : showSquadPicker ? "Squads" : "Todos os clientes"}
+          </h2>
+          <div className="flex gap-2">
+            {user.role === "ADMIN" && (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/squads">Gerenciar squads</Link>
+              </Button>
+            )}
+            {user.role === "ADMIN" && (
+              <Button asChild size="sm">
+                <Link href="/clients/new">
+                  <Plus className="mr-1.5 size-4" strokeWidth={1.5} />
+                  Novo cliente
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {showSquadPicker ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {squads.length === 0 && (
+              <div className="cartao col-span-full p-8 text-center text-sm text-tinta-3">
+                Nenhum squad criado ainda.{" "}
+                <Link href="/squads" className="text-mata underline">
+                  Criar squad
+                </Link>
+              </div>
+            )}
+            {squads.map((squad) => (
+              <Link key={squad.id} href={`/squads/${squad.id}`} className="cartao group flex items-center gap-4 p-6 transition-shadow hover:shadow-alto">
+                {squad.logoPath ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={getSquadLogoPublicUrl(squad.logoPath)} alt={squad.name} className="size-12 rounded-controle object-cover" />
+                ) : (
+                  <span className="flex size-12 items-center justify-center rounded-controle bg-linha-2">
+                    <Users2 className="size-5 text-tinta-3" strokeWidth={1.5} />
+                  </span>
+                )}
+                <div>
+                  <h3 className="font-semibold">{squad.name}</h3>
+                  <p className="mt-1 text-sm text-tinta-3">{squad._count.clients} cliente(s)</p>
+                </div>
               </Link>
-            </Button>
-          )}
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.length === 0 && (
-            <div className="cartao col-span-full p-8 text-center">
-              <p className="text-sm text-tinta-3">
-                {q
-                  ? "Nenhum cliente encontrado."
-                  : user.role === "ADMIN"
-                    ? "Nenhum cliente ainda. Crie o primeiro para começar."
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {clients.length === 0 && (
+              <div className="cartao col-span-full p-8 text-center">
+                <p className="text-sm text-tinta-3">
+                  {q
+                    ? "Nenhum cliente encontrado."
                     : "Você ainda não foi designado a nenhum cliente. Fale com um admin."}
-              </p>
-            </div>
-          )}
+                </p>
+              </div>
+            )}
 
-          {clients.map((client) => (
-            <ClientCard key={client.id} id={client.id} name={client.name} niche={client.niche} />
-          ))}
-        </div>
+            {clients.map((client) => (
+              <ClientCard key={client.id} id={client.id} name={client.name} niche={client.niche} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

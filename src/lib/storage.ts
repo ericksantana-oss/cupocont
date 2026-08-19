@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const DOCUMENTS_BUCKET = "client-documents";
 const MEDIA_BUCKET = "post-media";
+const SQUAD_LOGOS_BUCKET = "squad-logos";
 
 function getClient() {
   const url = process.env.APP_SUPABASE_URL;
@@ -12,18 +13,24 @@ function getClient() {
 
 const readyBuckets = new Set<string>();
 
-async function ensureBucket(bucket: string) {
+async function ensureBucket(bucket: string, isPublic = false) {
   if (readyBuckets.has(bucket)) return;
   const supabase = getClient();
   const { data: buckets } = await supabase.storage.listBuckets();
   if (!buckets?.some((b) => b.name === bucket)) {
-    await supabase.storage.createBucket(bucket, { public: false });
+    await supabase.storage.createBucket(bucket, { public: isPublic });
   }
   readyBuckets.add(bucket);
 }
 
-async function uploadFile(bucket: string, objectPath: string, buffer: Buffer, contentType?: string): Promise<string> {
-  await ensureBucket(bucket);
+async function uploadFile(
+  bucket: string,
+  objectPath: string,
+  buffer: Buffer,
+  contentType?: string,
+  isPublic = false
+): Promise<string> {
+  await ensureBucket(bucket, isPublic);
   const supabase = getClient();
   const { error } = await supabase.storage.from(bucket).upload(objectPath, buffer, {
     contentType: contentType ?? "application/octet-stream",
@@ -61,4 +68,15 @@ export async function getPostMediaSignedUrl(objectPath: string, expiresInSeconds
   const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrl(objectPath, expiresInSeconds);
   if (error || !data) throw new Error(`Falha ao gerar URL da mídia: ${error?.message}`);
   return data.signedUrl;
+}
+
+// Logo do squad: bucket público, já que é só uma imagem decorativa exibida
+// repetidamente na UI (sem necessidade de URL assinada/expirável).
+export async function uploadSquadLogo(objectPath: string, buffer: Buffer, contentType?: string) {
+  return uploadFile(SQUAD_LOGOS_BUCKET, objectPath, buffer, contentType, true);
+}
+
+export function getSquadLogoPublicUrl(objectPath: string): string {
+  const supabase = getClient();
+  return supabase.storage.from(SQUAD_LOGOS_BUCKET).getPublicUrl(objectPath).data.publicUrl;
 }

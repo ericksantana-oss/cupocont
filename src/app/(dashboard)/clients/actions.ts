@@ -11,12 +11,13 @@ export async function createClientAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const niche = String(formData.get("niche") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "").trim() || null;
+  const squadId = String(formData.get("squadId") ?? "").trim() || null;
 
   if (!name || !niche) {
     throw new Error("Nome e nicho são obrigatórios.");
   }
 
-  const client = await db.client.create({ data: { name, niche, ownerId } });
+  const client = await db.client.create({ data: { name, niche, ownerId, squadId } });
 
   if (ownerId) {
     await db.clientAccess.upsert({
@@ -36,12 +37,13 @@ export async function updateClientAction(clientId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const niche = String(formData.get("niche") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "").trim() || null;
+  const squadId = String(formData.get("squadId") ?? "").trim() || null;
 
   if (!name || !niche) {
     throw new Error("Nome e nicho são obrigatórios.");
   }
 
-  await db.client.update({ where: { id: clientId }, data: { name, niche, ownerId } });
+  await db.client.update({ where: { id: clientId }, data: { name, niche, ownerId, squadId } });
 
   if (ownerId) {
     await db.clientAccess.upsert({
@@ -62,6 +64,11 @@ export async function listWriters() {
   return db.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, role: true } });
 }
 
+export async function listSquads() {
+  await requireUser();
+  return db.squad.findMany({ orderBy: { name: "asc" } });
+}
+
 export async function deleteClientAction(clientId: string) {
   await requireAdmin();
   await db.client.delete({ where: { id: clientId } });
@@ -69,7 +76,16 @@ export async function deleteClientAction(clientId: string) {
   redirect("/clients");
 }
 
-export async function listAccessibleClients(search?: string) {
+// Redator: cliente do próprio squad OU liberado pontualmente via ClientAccess.
+// Admin/estagiário: todos os clientes.
+function accessFilterFor(user: { id: string; role: string; squadId: string | null }) {
+  if (user.role === "ADMIN" || user.role === "INTERN") return {};
+  return {
+    OR: [{ access: { some: { userId: user.id } } }, ...(user.squadId ? [{ squadId: user.squadId }] : [])],
+  };
+}
+
+export async function listAccessibleClients(search?: string, squadId?: string) {
   const user = await requireUser();
 
   const searchFilter = search
@@ -81,25 +97,17 @@ export async function listAccessibleClients(search?: string) {
       }
     : {};
 
-  if (user.role === "ADMIN") {
-    return db.client.findMany({ where: searchFilter, orderBy: { name: "asc" } });
-  }
-
   return db.client.findMany({
-    where: { access: { some: { userId: user.id } }, ...searchFilter },
+    where: { ...accessFilterFor(user), ...searchFilter, ...(squadId ? { squadId } : {}) },
     orderBy: { name: "asc" },
   });
 }
 
-export async function listRecentClients() {
+export async function listRecentClients(squadId?: string) {
   const user = await requireUser();
 
-  if (user.role === "ADMIN") {
-    return db.client.findMany({ orderBy: { createdAt: "desc" }, take: 3 });
-  }
-
   return db.client.findMany({
-    where: { access: { some: { userId: user.id } } },
+    where: { ...accessFilterFor(user), ...(squadId ? { squadId } : {}) },
     orderBy: { createdAt: "desc" },
     take: 3,
   });
@@ -118,10 +126,8 @@ export type PendingApproval = {
 export async function listPendingApprovals(): Promise<PendingApproval[]> {
   const user = await requireUser();
 
-  const clientFilter = user.role === "ADMIN" ? {} : { access: { some: { userId: user.id } } };
-
   const themes = await db.contentTheme.findMany({
-    where: { status: "SELECTED", client: clientFilter },
+    where: { status: "SELECTED", client: accessFilterFor(user) },
     include: {
       client: { select: { id: true, name: true } },
       briefing: { select: { period: true } },

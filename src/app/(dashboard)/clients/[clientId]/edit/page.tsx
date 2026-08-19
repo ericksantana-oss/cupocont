@@ -4,14 +4,18 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateClientAction, listWriters } from "../../actions";
+import { updateClientAction, listWriters, listSquads } from "../../actions";
 import { DeleteClientButton } from "@/components/client/DeleteClientButton";
 
 export default async function EditClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   await requireAdmin();
   const { clientId } = await params;
 
-  const [client, writers] = await Promise.all([db.client.findUnique({ where: { id: clientId } }), listWriters()]);
+  const [client, writers, squads] = await Promise.all([
+    db.client.findUnique({ where: { id: clientId } }),
+    listWriters(),
+    listSquads(),
+  ]);
   if (!client) notFound();
 
   const action = updateClientAction.bind(null, clientId);
@@ -43,6 +47,23 @@ export default async function EditClientPage({ params }: { params: Promise<{ cli
             {writers.map((writer) => (
               <option key={writer.id} value={writer.id}>
                 {writer.name} {writer.role === "ADMIN" ? "(Admin)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="squadId">Squad</Label>
+          <select
+            id="squadId"
+            name="squadId"
+            defaultValue={client.squadId ?? ""}
+            className="block w-full rounded-controle border border-linha bg-carta px-3 py-1.5 text-sm shadow-carta"
+          >
+            <option value="">Sem squad definido</option>
+            {squads.map((squad) => (
+              <option key={squad.id} value={squad.id}>
+                {squad.name}
               </option>
             ))}
           </select>

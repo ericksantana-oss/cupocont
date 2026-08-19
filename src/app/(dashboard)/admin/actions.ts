@@ -49,7 +49,7 @@ export async function getClientsOverview(period?: string): Promise<ClientOvervie
 export type TeamOverview = {
   userId: string;
   name: string;
-  role: "ADMIN" | "WRITER";
+  role: "ADMIN" | "WRITER" | "INTERN";
   clientsCount: number;
   completedCount: number;
   incompleteCount: number;

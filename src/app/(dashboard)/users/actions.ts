@@ -13,13 +13,14 @@ export async function createUserAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "WRITER") as Role;
+  const squadId = String(formData.get("squadId") ?? "").trim() || null;
 
   if (!name || !email || !password) {
     throw new Error("Nome, email e senha são obrigatórios.");
   }
 
   const passwordHash = await hashPassword(password);
-  await db.user.create({ data: { name, email, passwordHash, role } });
+  await db.user.create({ data: { name, email, passwordHash, role, squadId } });
 
   revalidatePath("/users");
 }

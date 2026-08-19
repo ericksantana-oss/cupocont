@@ -11,6 +11,7 @@ export type SessionUser = {
   name: string;
   email: string;
   role: Role;
+  squadId: string | null;
 };
 
 // Sessão fica no banco (tabela `sessions`); o cookie guarda só um token opaco.
@@ -53,6 +54,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     name: session.user.name,
     email: session.user.email,
     role: session.user.role,
+    squadId: session.user.squadId,
   };
 }
 

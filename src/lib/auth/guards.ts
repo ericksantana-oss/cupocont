@@ -14,10 +14,14 @@ export async function requireAdmin(): Promise<SessionUser> {
   return user;
 }
 
-// Admins têm acesso a todos os clientes; redatores só aos que foram designados.
+// Admins e estagiários (acesso total) veem qualquer cliente. Redatores só veem
+// clientes do próprio squad, mais os que foram liberados pontualmente via ClientAccess.
 export async function requireClientAccess(clientId: string): Promise<SessionUser> {
   const user = await requireUser();
-  if (user.role === "ADMIN") return user;
+  if (user.role === "ADMIN" || user.role === "INTERN") return user;
+
+  const client = await db.client.findUnique({ where: { id: clientId }, select: { squadId: true } });
+  if (client?.squadId && user.squadId && client.squadId === user.squadId) return user;
 
   const access = await db.clientAccess.findUnique({
     where: { userId_clientId: { userId: user.id, clientId } },

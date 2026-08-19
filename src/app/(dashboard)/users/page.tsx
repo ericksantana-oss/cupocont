@@ -3,16 +3,20 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createUserAction, toggleClientAccessAction, resetPasswordAction, updateUserNameAction } from "./actions";
+import { updateUserSquadAction } from "../squads/actions";
+
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", WRITER: "Redator", INTERN: "Estagiário" };
 
 export default async function UsersPage() {
   await requireAdmin();
 
-  const [users, clients] = await Promise.all([
+  const [users, clients, squads] = await Promise.all([
     db.user.findMany({
       orderBy: { createdAt: "asc" },
       include: { clientAccess: { select: { clientId: true } } },
     }),
     db.client.findMany({ orderBy: { name: "asc" } }),
+    db.squad.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -26,6 +30,15 @@ export default async function UsersPage() {
           <select name="role" className="rounded-controle border border-linha bg-carta px-3 py-1 text-sm shadow-carta">
             <option value="WRITER">Redator</option>
             <option value="ADMIN">Admin</option>
+            <option value="INTERN">Estagiário (acesso a todos os clientes)</option>
+          </select>
+          <select name="squadId" className="rounded-controle border border-linha bg-carta px-3 py-1 text-sm shadow-carta">
+            <option value="">Sem squad</option>
+            {squads.map((squad) => (
+              <option key={squad.id} value={squad.id}>
+                {squad.name}
+              </option>
+            ))}
           </select>
           <Button type="submit" className="col-span-2">
             Criar usuário
@@ -41,6 +54,7 @@ export default async function UsersPage() {
               <tr>
                 <th className="p-3">Nome</th>
                 <th className="p-3">Papel</th>
+                <th className="p-3">Squad</th>
                 <th className="p-3">Redefinir senha</th>
                 {clients.map((client) => (
                   <th key={client.id} className="p-3 whitespace-nowrap">
@@ -64,7 +78,31 @@ export default async function UsersPage() {
                       </form>
                       <span className="text-xs text-tinta-3">{user.email}</span>
                     </td>
-                    <td className="p-3">{user.role === "ADMIN" ? "Admin" : "Redator"}</td>
+                    <td className="p-3">{ROLE_LABEL[user.role]}</td>
+                    <td className="p-3">
+                      {user.role === "WRITER" ? (
+                        <form action={updateUserSquadAction} className="flex gap-1.5">
+                          <input type="hidden" name="userId" value={user.id} />
+                          <select
+                            name="squadId"
+                            defaultValue={user.squadId ?? ""}
+                            className="h-8 rounded-controle border border-linha bg-carta px-2 text-xs shadow-carta"
+                          >
+                            <option value="">Sem squad</option>
+                            {squads.map((squad) => (
+                              <option key={squad.id} value={squad.id}>
+                                {squad.name}
+                              </option>
+                            ))}
+                          </select>
+                          <Button type="submit" size="sm" variant="outline">
+                            Salvar
+                          </Button>
+                        </form>
+                      ) : (
+                        <span className="text-xs text-tinta-3">todos</span>
+                      )}
+                    </td>
                     <td className="p-3">
                       <form action={resetPasswordAction} className="flex gap-1.5">
                         <input type="hidden" name="userId" value={user.id} />
@@ -85,8 +123,12 @@ export default async function UsersPage() {
                       const hasAccess = accessSet.has(client.id);
                       return (
                         <td key={client.id} className="p-3 text-center">
-                          {user.role === "ADMIN" ? (
+                          {user.role === "ADMIN" || user.role === "INTERN" ? (
                             <span className="text-xs text-tinta-3">todos</span>
+                          ) : client.squadId && client.squadId === user.squadId ? (
+                            <span className="text-xs text-mata" title="Acesso automático pelo squad">
+                              squad
+                            </span>
                           ) : (
                             <form action={toggleClientAccessAction}>
                               <input type="hidden" name="userId" value={user.id} />

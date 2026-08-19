@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, LayoutDashboard, LogOut, Users } from "lucide-react";
+import { Home, LayoutDashboard, LogOut, Users, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
 import { CupolaMark } from "@/components/CupolaMark";
@@ -18,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             matchPrefix: true,
           },
           { href: "/users", label: "Usuários", icon: <Users className="size-4" strokeWidth={1.5} /> },
+          { href: "/squads", label: "Squads", icon: <Users2 className="size-4" strokeWidth={1.5} /> },
         ]
       : [];
 
@@ -54,7 +55,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{user.name}</p>
-              <p className="truncate text-xs text-papel/50">{user.role === "ADMIN" ? "Admin" : "Redator"}</p>
+              <p className="truncate text-xs text-papel/50">
+                {user.role === "ADMIN" ? "Admin" : user.role === "INTERN" ? "Estagiário" : "Redator"}
+              </p>
             </div>
           </Link>
           <form action={logoutAction}>
