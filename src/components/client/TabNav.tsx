@@ -2,11 +2,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "contexto", label: "1. Contexto" },
-  { key: "keywords", label: "2. Palavras-chave" },
-  { key: "briefing", label: "3. Briefing" },
-  { key: "temas", label: "4. Temas" },
-  { key: "textos", label: "5. Textos" },
+  { key: "keywords", label: "1. Palavras-chave" },
+  { key: "briefing", label: "2. Briefing" },
+  { key: "temas", label: "3. Temas" },
+  { key: "textos", label: "4. Textos" },
 ];
 
 export function TabNav({ clientId, period, activeTab }: { clientId: string; period: string; activeTab: string }) {

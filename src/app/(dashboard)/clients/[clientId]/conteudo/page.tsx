@@ -6,7 +6,6 @@ import { requireClientAccess } from "@/lib/auth/guards";
 import { currentPeriod } from "@/lib/periodo";
 import { PeriodSelect } from "@/components/client/PeriodSelect";
 import { TabNav } from "@/components/client/TabNav";
-import { ContextTab } from "@/components/client/ContextTab";
 import { KeywordsTab } from "@/components/client/KeywordsTab";
 import { BriefingTab } from "@/components/client/BriefingTab";
 import { ThemesTab } from "@/components/client/ThemesTab";
@@ -20,7 +19,7 @@ export default async function ClientContentPage({
   searchParams: Promise<{ tab?: string; period?: string }>;
 }) {
   const { clientId } = await params;
-  const { tab = "contexto", period = currentPeriod() } = await searchParams;
+  const { tab = "keywords", period = currentPeriod() } = await searchParams;
 
   await requireClientAccess(clientId);
 
@@ -45,7 +44,6 @@ export default async function ClientContentPage({
       <div className="mt-8">
         <TabNav clientId={clientId} period={period} activeTab={tab} />
         <div className="mt-6">
-          {tab === "contexto" && <ContextTab clientId={clientId} />}
           {tab === "keywords" && <KeywordsTab clientId={clientId} period={period} />}
           {tab === "briefing" && <BriefingTab clientId={clientId} period={period} />}
           {tab === "temas" && <ThemesTab clientId={clientId} period={period} />}

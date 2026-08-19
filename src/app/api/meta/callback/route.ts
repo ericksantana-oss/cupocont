@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
   if (!clientId) return NextResponse.json({ error: "state (clientId) ausente." }, { status: 400 });
 
   const redirectTo = (status: "connected" | "choose" | "error", message?: string) => {
-    const url = new URL(`/clients/${clientId}/conteudo`, origin);
-    url.searchParams.set("tab", "contexto");
+    const url = new URL(`/clients/${clientId}/contexto`, origin);
     url.searchParams.set("instagram", status);
     if (message) url.searchParams.set("instagram_error", message);
     return NextResponse.redirect(url);
