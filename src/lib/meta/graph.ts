@@ -248,6 +248,35 @@ export async function getMediaInPeriod(
   );
 }
 
+export interface ScheduledFacebookPost {
+  id: string;
+  message?: string;
+  scheduledPublishTime: string;
+  createdTime: string;
+}
+
+// Espelha os posts que já estão agendados de verdade na Página do Facebook
+// (agendados direto no Meta Business Suite ou por qualquer outra ferramenta) — somente leitura.
+export async function getScheduledFacebookPosts(pageId: string, pageAccessToken: string): Promise<ScheduledFacebookPost[]> {
+  const data = await graphGet<{
+    data: { id: string; message?: string; scheduled_publish_time?: number; created_time: string }[];
+  }>(`/${pageId}/scheduled_posts`, {
+    fields: "message,scheduled_publish_time,created_time",
+    limit: "100",
+    access_token: pageAccessToken,
+  });
+
+  return data.data
+    .filter((post) => post.scheduled_publish_time)
+    .map((post) => ({
+      id: post.id,
+      message: post.message,
+      scheduledPublishTime: new Date(post.scheduled_publish_time! * 1000).toISOString(),
+      createdTime: post.created_time,
+    }))
+    .sort((a, b) => a.scheduledPublishTime.localeCompare(b.scheduledPublishTime));
+}
+
 // Tenta um conjunto de métricas mais completo primeiro; se a conta/tipo de mídia
 // não suportar alguma delas, cai pra um conjunto menor em vez de falhar tudo.
 async function getMediaInsightsSafely(
