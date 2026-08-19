@@ -26,6 +26,12 @@ function extensionToFileType(fileName: string): string {
   throw new Error(`Formato não suportado: .${ext} (use PDF, DOCX ou TXT)`);
 }
 
+const FILE_TYPE_CONTENT_TYPE: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+};
+
 export async function uploadDocumentAction(clientId: string, formData: FormData) {
   const user = await requireClientAccess(clientId);
 
@@ -39,7 +45,7 @@ export async function uploadDocumentAction(clientId: string, formData: FormData)
 
     const storedName = `${randomUUID()}-${file.name}`;
     const objectPath = `${clientId}/${storedName}`;
-    await uploadClientFile(objectPath, buffer);
+    await uploadClientFile(objectPath, buffer, FILE_TYPE_CONTENT_TYPE[fileType]);
 
     const document = await db.clientDocument.create({
       data: { clientId, fileName: file.name, fileType, originalPath: objectPath, status: "PROCESSING" },

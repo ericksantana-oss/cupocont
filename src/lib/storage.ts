@@ -25,7 +25,7 @@ export async function uploadClientFile(objectPath: string, buffer: Buffer, conte
   await ensureBucket();
   const supabase = getClient();
   const { error } = await supabase.storage.from(BUCKET).upload(objectPath, buffer, {
-    contentType,
+    contentType: contentType ?? "application/octet-stream",
     upsert: true,
   });
   if (error) throw new Error(`Falha ao salvar arquivo: ${error.message}`);
