@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createUserAction, toggleClientAccessAction } from "./actions";
+import { createUserAction, toggleClientAccessAction, resetPasswordAction } from "./actions";
 
 export default async function UsersPage() {
   await requireAdmin();
@@ -41,6 +41,7 @@ export default async function UsersPage() {
               <tr>
                 <th className="p-3">Nome</th>
                 <th className="p-3">Papel</th>
+                <th className="p-3">Redefinir senha</th>
                 {clients.map((client) => (
                   <th key={client.id} className="p-3 whitespace-nowrap">
                     {client.name}
@@ -59,6 +60,22 @@ export default async function UsersPage() {
                       <span className="text-xs text-tinta-3">{user.email}</span>
                     </td>
                     <td className="p-3">{user.role === "ADMIN" ? "Admin" : "Redator"}</td>
+                    <td className="p-3">
+                      <form action={resetPasswordAction} className="flex gap-1.5">
+                        <input type="hidden" name="userId" value={user.id} />
+                        <Input
+                          name="newPassword"
+                          type="password"
+                          placeholder="Nova senha"
+                          minLength={8}
+                          required
+                          className="h-8 w-32 text-xs"
+                        />
+                        <Button type="submit" size="sm" variant="outline">
+                          Redefinir
+                        </Button>
+                      </form>
+                    </td>
                     {clients.map((client) => {
                       const hasAccess = accessSet.has(client.id);
                       return (

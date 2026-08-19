@@ -24,6 +24,22 @@ export async function createUserAction(formData: FormData) {
   revalidatePath("/users");
 }
 
+export async function resetPasswordAction(formData: FormData) {
+  await requireAdmin();
+
+  const userId = String(formData.get("userId"));
+  const newPassword = String(formData.get("newPassword") ?? "");
+
+  if (newPassword.length < 8) {
+    throw new Error("A nova senha precisa ter pelo menos 8 caracteres.");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await db.user.update({ where: { id: userId }, data: { passwordHash } });
+
+  revalidatePath("/users");
+}
+
 // Liga/desliga o acesso de um redator a um cliente específico
 export async function toggleClientAccessAction(formData: FormData) {
   await requireAdmin();

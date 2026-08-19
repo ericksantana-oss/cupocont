@@ -46,6 +46,10 @@ export default function LoginPage() {
         {state?.error && <p className="text-sm text-risco">{state.error}</p>}
 
         <SubmitButton />
+
+        <p className="text-center text-xs text-tinta-3">
+          Esqueceu a senha? Peça para um administrador redefinir em Usuários.
+        </p>
       </form>
     </main>
   );
