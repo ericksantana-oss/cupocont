@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
     const candidates = await Promise.all(
       pages.map(async (page) => ({
+        pageId: page.pageId,
         pageName: page.pageName,
         igUserId: page.igUserId,
         igUsername: await getInstagramUsername(page.igUserId, page.pageAccessToken),
@@ -53,8 +54,21 @@ export async function GET(request: NextRequest) {
       const only = candidates[0];
       await db.instagramAccount.upsert({
         where: { clientId },
-        create: { clientId, igUserId: only.igUserId, igUsername: only.igUsername, pageAccessToken: only.pageAccessToken },
-        update: { igUserId: only.igUserId, igUsername: only.igUsername, pageAccessToken: only.pageAccessToken },
+        create: {
+          clientId,
+          igUserId: only.igUserId,
+          igUsername: only.igUsername,
+          pageId: only.pageId,
+          pageName: only.pageName,
+          pageAccessToken: only.pageAccessToken,
+        },
+        update: {
+          igUserId: only.igUserId,
+          igUsername: only.igUsername,
+          pageId: only.pageId,
+          pageName: only.pageName,
+          pageAccessToken: only.pageAccessToken,
+        },
       });
       return redirectTo("connected");
     }

@@ -71,7 +71,8 @@ export async function InstagramCard({ clientId }: { clientId: string }) {
         <div>
           <h2 className="text-lg font-semibold">Instagram conectado</h2>
           <p className="mt-1 text-sm text-tinta-3">
-            @{account.igUsername ?? "conta conectada"}
+            Instagram: @{account.igUsername ?? "conta conectada"}
+            {account.pageName && ` · Facebook: ${account.pageName}`}
             {account.lastSyncedAt && ` — última atualização ${formatDateTime(account.lastSyncedAt)}`}
           </p>
         </div>

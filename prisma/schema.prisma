@@ -115,6 +115,8 @@ model InstagramAccount {
   clientId        String    @unique
   igUserId        String // id da conta comercial do Instagram
   igUsername      String?
+  pageId          String? // id da Página do Facebook vinculada, usada para publicar no Facebook também
+  pageName        String?
   pageAccessToken String // token da página do Facebook vinculada, não expira enquanto a conexão for válida
   connectedAt     DateTime  @default(now())
   lastSyncedAt    DateTime?

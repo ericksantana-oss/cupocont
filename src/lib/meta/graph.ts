@@ -16,7 +16,8 @@ export function buildAuthorizeUrl(state: string): string {
     redirect_uri: redirectUri,
     state,
     response_type: "code",
-    scope: "pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights,business_management",
+    scope:
+      "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_manage_insights,instagram_content_publish,business_management",
   });
 
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
@@ -86,12 +87,13 @@ async function getAllPages(longLivedUserToken: string): Promise<FacebookPage[]> 
 
 export async function findInstagramAccounts(
   longLivedUserToken: string
-): Promise<{ pageName: string; igUserId: string; pageAccessToken: string }[]> {
+): Promise<{ pageId: string; pageName: string; igUserId: string; pageAccessToken: string }[]> {
   const pages = await getAllPages(longLivedUserToken);
 
   return pages
     .filter((page) => page.instagram_business_account)
     .map((page) => ({
+      pageId: page.id,
       pageName: page.name,
       igUserId: page.instagram_business_account!.id,
       pageAccessToken: page.access_token,

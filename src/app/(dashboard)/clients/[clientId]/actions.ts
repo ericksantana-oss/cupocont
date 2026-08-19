@@ -124,6 +124,7 @@ export async function chooseInstagramAccountAction(clientId: string, formData: F
   if (pending.clientId !== clientId) throw new Error("Seleção inválida.");
 
   const candidates = pending.candidates as {
+    pageId: string;
     pageName: string;
     igUserId: string;
     igUsername: string | null;
@@ -134,8 +135,21 @@ export async function chooseInstagramAccountAction(clientId: string, formData: F
 
   await db.instagramAccount.upsert({
     where: { clientId },
-    create: { clientId, igUserId: chosen.igUserId, igUsername: chosen.igUsername, pageAccessToken: chosen.pageAccessToken },
-    update: { igUserId: chosen.igUserId, igUsername: chosen.igUsername, pageAccessToken: chosen.pageAccessToken },
+    create: {
+      clientId,
+      igUserId: chosen.igUserId,
+      igUsername: chosen.igUsername,
+      pageId: chosen.pageId,
+      pageName: chosen.pageName,
+      pageAccessToken: chosen.pageAccessToken,
+    },
+    update: {
+      igUserId: chosen.igUserId,
+      igUsername: chosen.igUsername,
+      pageId: chosen.pageId,
+      pageName: chosen.pageName,
+      pageAccessToken: chosen.pageAccessToken,
+    },
   });
   await db.instagramPendingSelection.delete({ where: { id: selectionId } });
 
