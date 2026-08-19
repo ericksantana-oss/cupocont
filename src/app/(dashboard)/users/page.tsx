@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createUserAction, toggleClientAccessAction, resetPasswordAction } from "./actions";
+import { createUserAction, toggleClientAccessAction, resetPasswordAction, updateUserNameAction } from "./actions";
 
 export default async function UsersPage() {
   await requireAdmin();
@@ -55,8 +55,13 @@ export default async function UsersPage() {
                 return (
                   <tr key={user.id} className="border-b border-linha-2">
                     <td className="p-3">
-                      {user.name}
-                      <br />
+                      <form action={updateUserNameAction} className="flex gap-1.5">
+                        <input type="hidden" name="userId" value={user.id} />
+                        <Input name="name" defaultValue={user.name} required className="h-8 w-36 text-xs" />
+                        <Button type="submit" size="sm" variant="outline">
+                          Salvar
+                        </Button>
+                      </form>
                       <span className="text-xs text-tinta-3">{user.email}</span>
                     </td>
                     <td className="p-3">{user.role === "ADMIN" ? "Admin" : "Redator"}</td>

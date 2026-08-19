@@ -24,6 +24,17 @@ export async function createUserAction(formData: FormData) {
   revalidatePath("/users");
 }
 
+export async function updateUserNameAction(formData: FormData) {
+  await requireAdmin();
+
+  const userId = String(formData.get("userId"));
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("O nome não pode ficar vazio.");
+
+  await db.user.update({ where: { id: userId }, data: { name } });
+  revalidatePath("/users");
+}
+
 export async function resetPasswordAction(formData: FormData) {
   await requireAdmin();
 
