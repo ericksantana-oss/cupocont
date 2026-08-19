@@ -16,7 +16,7 @@ export function buildAuthorizeUrl(state: string): string {
     redirect_uri: redirectUri,
     state,
     response_type: "code",
-    scope: "pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights",
+    scope: "pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights,business_management",
   });
 
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
