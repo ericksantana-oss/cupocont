@@ -26,6 +26,7 @@ const FORMAT_LABEL: Record<string, string> = {
   CAROUSEL: "Carrossel (2 a 10 imagens)",
   REELS: "Reels (1 vídeo)",
   VIDEO: "Vídeo (Facebook)",
+  STORIES: "Stories (Instagram)",
 };
 
 export async function TextsTab({ clientId, period }: { clientId: string; period: string }) {

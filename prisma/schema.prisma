@@ -234,6 +234,7 @@ enum MediaFormat {
   CAROUSEL
   REELS
   VIDEO
+  STORIES
 }
 
 enum ActivityAction {
@@ -347,7 +348,7 @@ enum PublishStatus {
 model ScheduledPost {
   id           String        @id @default(cuid())
   clientId     String
-  textId       String
+  textId       String? // presente quando criado a partir de um texto aprovado; nulo nos posts avulsos da tela "Agendar post"
   channel      PublishChannel
   format       MediaFormat
   caption      String
@@ -362,7 +363,7 @@ model ScheduledPost {
   createdAt    DateTime      @default(now())
 
   client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  text      GeneratedText  @relation(fields: [textId], references: [id], onDelete: Cascade)
+  text      GeneratedText? @relation(fields: [textId], references: [id], onDelete: SetNull)
   createdBy User           @relation("PostScheduler", fields: [createdById], references: [id])
 
   @@index([clientId])

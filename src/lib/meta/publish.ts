@@ -21,7 +21,7 @@ async function waitForContainerReady(creationId: string, pageAccessToken: string
 export async function publishToInstagram(params: {
   igUserId: string;
   pageAccessToken: string;
-  format: "IMAGE" | "CAROUSEL" | "REELS" | "VIDEO";
+  format: "IMAGE" | "CAROUSEL" | "REELS" | "VIDEO" | "STORIES";
   caption: string;
   mediaUrls: string[];
 }): Promise<{ permalink: string | null; mediaId: string }> {
@@ -33,7 +33,16 @@ export async function publishToInstagram(params: {
 
   let creationId: string;
 
-  if (format === "CAROUSEL") {
+  if (format === "STORIES") {
+    const isVideo = /\.(mp4|mov)$/i.test(mediaUrls[0].split("?")[0]);
+    const container = await graphPost<{ id: string }>(`/${igUserId}/media`, {
+      media_type: "STORIES",
+      [isVideo ? "video_url" : "image_url"]: mediaUrls[0],
+      access_token: pageAccessToken,
+    });
+    creationId = container.id;
+    if (isVideo) await waitForContainerReady(creationId, pageAccessToken);
+  } else if (format === "CAROUSEL") {
     const childIds = await Promise.all(
       mediaUrls.map(async (url) => {
         const isVideo = /\.(mp4|mov)$/i.test(url.split("?")[0]);
@@ -87,11 +96,15 @@ export async function publishToInstagram(params: {
 export async function publishToFacebook(params: {
   pageId: string;
   pageAccessToken: string;
-  format: "IMAGE" | "CAROUSEL" | "REELS" | "VIDEO";
+  format: "IMAGE" | "CAROUSEL" | "REELS" | "VIDEO" | "STORIES";
   caption: string;
   mediaUrls: string[];
 }): Promise<{ permalink: string | null; mediaId: string }> {
   const { pageId, pageAccessToken, format, caption, mediaUrls } = params;
+
+  if (format === "STORIES") {
+    throw new Error('Formato "Stories" não é suportado para publicação no Facebook por esta ferramenta.');
+  }
 
   if (isVideoFormat(format)) {
     const result = await graphPost<{ id: string }>(`/${pageId}/videos`, {

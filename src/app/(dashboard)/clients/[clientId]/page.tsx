@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BarChart3, BookOpen, GitBranch, Mail, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, GitBranch, Mail, Pencil, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
@@ -64,15 +64,24 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
           title="Fluxo de e-mail"
           description="E-mail de um fluxo já planejado, mantendo continuidade com os anteriores."
         />
+        <ChoiceCard
+          href={`/clients/${clientId}/posts/novo`}
+          icon={<CalendarClock className="size-5 text-mata" strokeWidth={1.5} />}
+          title="Agendar post"
+          description="Publica agora ou agenda um post avulso no Instagram/Facebook, sem depender do fluxo de temas."
+        />
       </div>
 
-      <Link
-        href={`/clients/${clientId}/emails`}
-        className="mt-6 inline-flex items-center text-sm font-medium text-mata"
-      >
-        Ver histórico de e-mails
-        <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
-      </Link>
+      <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
+        <Link href={`/clients/${clientId}/emails`} className="inline-flex items-center text-sm font-medium text-mata">
+          Ver histórico de e-mails
+          <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
+        </Link>
+        <Link href={`/clients/${clientId}/posts`} className="inline-flex items-center text-sm font-medium text-mata">
+          Ver posts agendados
+          <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
+        </Link>
+      </div>
     </div>
   );
 }

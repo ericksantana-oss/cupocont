@@ -21,6 +21,7 @@ import {
   deletePostMedia,
   getPostMediaSignedUrl,
 } from "@/lib/storage";
+import { MEDIA_CONTENT_TYPE, sanitizeForStorageKey, validateFileCountForFormat } from "@/lib/mediaUpload";
 
 function revalidateClient(clientId: string) {
   revalidatePath(`/clients/${clientId}`);
@@ -34,12 +35,6 @@ function extensionToFileType(fileName: string): string {
   throw new Error(`Formato não suportado: .${ext} (use PDF, DOCX ou TXT)`);
 }
 
-function sanitizeForStorageKey(fileName: string): string {
-  return fileName
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // remove acentos (marcas de combinação após normalize)
-    .replace(/[^a-zA-Z0-9.-]+/g, "_");
-}
 
 const FILE_TYPE_CONTENT_TYPE: Record<string, string> = {
   pdf: "application/pdf",
@@ -373,36 +368,12 @@ export async function editTextAction(clientId: string, textId: string, formData:
   revalidateClient(clientId);
 }
 
-const MEDIA_CONTENT_TYPE: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  mp4: "video/mp4",
-  mov: "video/quicktime",
-};
-
-const FORMAT_LIMITS: Record<string, { min: number; max: number }> = {
-  IMAGE: { min: 1, max: 1 },
-  VIDEO: { min: 1, max: 1 },
-  REELS: { min: 1, max: 1 },
-  CAROUSEL: { min: 2, max: 10 },
-};
-
 export async function uploadTextMediaAction(clientId: string, textId: string, formData: FormData) {
   await requireClientAccess(clientId);
 
   const format = String(formData.get("format") ?? "");
-  if (!FORMAT_LIMITS[format]) throw new Error("Formato inválido.");
-
   const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
-  const limits = FORMAT_LIMITS[format];
-  if (files.length < limits.min || files.length > limits.max) {
-    throw new Error(
-      limits.min === limits.max
-        ? `Este formato exige exatamente ${limits.min} arquivo(s).`
-        : `Este formato aceita entre ${limits.min} e ${limits.max} arquivos.`
-    );
-  }
+  validateFileCountForFormat(format, files.length);
 
   const mediaPaths: string[] = [];
   for (const file of files) {
