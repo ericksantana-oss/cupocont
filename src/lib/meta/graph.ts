@@ -59,15 +59,37 @@ interface FacebookPage {
   instagram_business_account?: { id: string };
 }
 
+interface FacebookPagesResponse {
+  data: FacebookPage[];
+  paging?: { next?: string };
+}
+
+async function getAllPages(longLivedUserToken: string): Promise<FacebookPage[]> {
+  const pages: FacebookPage[] = [];
+  let nextUrl: string | null = null;
+
+  do {
+    const data: FacebookPagesResponse = nextUrl
+      ? await (await fetch(nextUrl)).json()
+      : await graphGet<FacebookPagesResponse>("/me/accounts", {
+          fields: "name,access_token,instagram_business_account",
+          limit: "100",
+          access_token: longLivedUserToken,
+        });
+
+    pages.push(...data.data);
+    nextUrl = data.paging?.next ?? null;
+  } while (nextUrl);
+
+  return pages;
+}
+
 export async function findInstagramAccounts(
   longLivedUserToken: string
 ): Promise<{ pageName: string; igUserId: string; pageAccessToken: string }[]> {
-  const data = await graphGet<{ data: FacebookPage[] }>("/me/accounts", {
-    fields: "name,access_token,instagram_business_account",
-    access_token: longLivedUserToken,
-  });
+  const pages = await getAllPages(longLivedUserToken);
 
-  return data.data
+  return pages
     .filter((page) => page.instagram_business_account)
     .map((page) => ({
       pageName: page.name,
