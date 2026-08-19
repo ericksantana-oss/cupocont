@@ -3,9 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 const BUCKET = "client-documents";
 
 function getClient() {
-  const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY não configurados.");
+  const url = process.env.APP_SUPABASE_URL;
+  const serviceRoleKey = process.env.APP_SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) throw new Error("APP_SUPABASE_URL/APP_SUPABASE_SERVICE_ROLE_KEY não configurados.");
   return createClient(url, serviceRoleKey);
 }
 
