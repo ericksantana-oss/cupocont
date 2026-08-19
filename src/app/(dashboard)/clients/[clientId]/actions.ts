@@ -104,6 +104,34 @@ export async function addManualKeywordAction(clientId: string, period: string, f
 
 // ---------- Instagram (Meta Graph API) ----------
 
+export async function chooseInstagramAccountAction(clientId: string, formData: FormData) {
+  await requireClientAccess(clientId);
+
+  const selectionId = String(formData.get("selectionId"));
+  const igUserId = String(formData.get("igUserId"));
+
+  const pending = await db.instagramPendingSelection.findUniqueOrThrow({ where: { id: selectionId } });
+  if (pending.clientId !== clientId) throw new Error("Seleção inválida.");
+
+  const candidates = pending.candidates as {
+    pageName: string;
+    igUserId: string;
+    igUsername: string | null;
+    pageAccessToken: string;
+  }[];
+  const chosen = candidates.find((c) => c.igUserId === igUserId);
+  if (!chosen) throw new Error("Conta não encontrada na seleção.");
+
+  await db.instagramAccount.upsert({
+    where: { clientId },
+    create: { clientId, igUserId: chosen.igUserId, igUsername: chosen.igUsername, pageAccessToken: chosen.pageAccessToken },
+    update: { igUserId: chosen.igUserId, igUsername: chosen.igUsername, pageAccessToken: chosen.pageAccessToken },
+  });
+  await db.instagramPendingSelection.delete({ where: { id: selectionId } });
+
+  revalidateClient(clientId);
+}
+
 export async function disconnectInstagramAction(clientId: string) {
   await requireClientAccess(clientId);
   await db.instagramAccount.delete({ where: { clientId } }).catch(() => null);

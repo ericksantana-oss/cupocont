@@ -2,10 +2,47 @@ import { Instagram, RefreshCw, Unlink } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/formatDate";
-import { syncInstagramAction, disconnectInstagramAction } from "@/app/(dashboard)/clients/[clientId]/actions";
+import {
+  syncInstagramAction,
+  disconnectInstagramAction,
+  chooseInstagramAccountAction,
+} from "@/app/(dashboard)/clients/[clientId]/actions";
 
 export async function InstagramCard({ clientId }: { clientId: string }) {
-  const account = await db.instagramAccount.findUnique({ where: { clientId } });
+  const [account, pending] = await Promise.all([
+    db.instagramAccount.findUnique({ where: { clientId } }),
+    db.instagramPendingSelection.findFirst({ where: { clientId }, orderBy: { createdAt: "desc" } }),
+  ]);
+
+  if (pending) {
+    const candidates = pending.candidates as { pageName: string; igUserId: string; igUsername: string | null }[];
+    const chooseAction = chooseInstagramAccountAction.bind(null, clientId);
+
+    return (
+      <div className="cartao p-6">
+        <h2 className="text-lg font-semibold">Qual conta é do cliente?</h2>
+        <p className="mt-1 text-sm text-tinta-3">
+          Encontramos mais de uma Página do Facebook com Instagram vinculado na conta autorizada. Escolha qual
+          pertence a este cliente.
+        </p>
+        <div className="mt-4 space-y-2">
+          {candidates.map((c) => (
+            <form key={c.igUserId} action={chooseAction} className="flex items-center justify-between gap-3 rounded-controle border border-linha p-3">
+              <input type="hidden" name="selectionId" value={pending.id} />
+              <input type="hidden" name="igUserId" value={c.igUserId} />
+              <div className="text-sm">
+                <span className="font-medium">@{c.igUsername ?? "sem username"}</span>
+                <span className="ml-2 text-tinta-3">(página: {c.pageName})</span>
+              </div>
+              <Button type="submit" size="sm">
+                Usar esta conta
+              </Button>
+            </form>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!account) {
     return (

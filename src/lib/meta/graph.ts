@@ -59,21 +59,21 @@ interface FacebookPage {
   instagram_business_account?: { id: string };
 }
 
-export async function findInstagramAccount(
+export async function findInstagramAccounts(
   longLivedUserToken: string
-): Promise<{ igUserId: string; pageAccessToken: string } | null> {
+): Promise<{ pageName: string; igUserId: string; pageAccessToken: string }[]> {
   const data = await graphGet<{ data: FacebookPage[] }>("/me/accounts", {
     fields: "name,access_token,instagram_business_account",
     access_token: longLivedUserToken,
   });
 
-  const pageWithInstagram = data.data.find((page) => page.instagram_business_account);
-  if (!pageWithInstagram?.instagram_business_account) return null;
-
-  return {
-    igUserId: pageWithInstagram.instagram_business_account.id,
-    pageAccessToken: pageWithInstagram.access_token,
-  };
+  return data.data
+    .filter((page) => page.instagram_business_account)
+    .map((page) => ({
+      pageName: page.name,
+      igUserId: page.instagram_business_account!.id,
+      pageAccessToken: page.access_token,
+    }));
 }
 
 export async function getInstagramUsername(igUserId: string, pageAccessToken: string): Promise<string | null> {

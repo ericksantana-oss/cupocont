@@ -4,7 +4,7 @@ import { requireClientAccess } from "@/lib/auth/guards";
 import {
   exchangeCodeForUserToken,
   exchangeForLongLivedToken,
-  findInstagramAccount,
+  findInstagramAccounts,
   getInstagramUsername,
 } from "@/lib/meta/graph";
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   if (!clientId) return NextResponse.json({ error: "state (clientId) ausente." }, { status: 400 });
 
-  const redirectTo = (status: "connected" | "error", message?: string) => {
+  const redirectTo = (status: "connected" | "choose" | "error", message?: string) => {
     const url = new URL(`/clients/${clientId}/conteudo`, origin);
     url.searchParams.set("tab", "contexto");
     url.searchParams.set("instagram", status);
@@ -30,33 +30,40 @@ export async function GET(request: NextRequest) {
   try {
     const shortLivedToken = await exchangeCodeForUserToken(code);
     const longLivedToken = await exchangeForLongLivedToken(shortLivedToken);
-    const account = await findInstagramAccount(longLivedToken);
+    const pages = await findInstagramAccounts(longLivedToken);
 
-    if (!account) {
+    if (pages.length === 0) {
       return redirectTo(
         "error",
-        "Nenhuma conta comercial do Instagram foi encontrada nas páginas do Facebook autorizadas."
+        "Nenhuma conta comercial do Instagram foi encontrada nas páginas do Facebook autorizadas. Confirme que a conta do Instagram do cliente está vinculada a uma Página do Facebook e é uma conta comercial/criador de conteúdo."
       );
     }
 
-    const igUsername = await getInstagramUsername(account.igUserId, account.pageAccessToken);
+    const candidates = await Promise.all(
+      pages.map(async (page) => ({
+        pageName: page.pageName,
+        igUserId: page.igUserId,
+        igUsername: await getInstagramUsername(page.igUserId, page.pageAccessToken),
+        pageAccessToken: page.pageAccessToken,
+      }))
+    );
 
-    await db.instagramAccount.upsert({
-      where: { clientId },
-      create: {
-        clientId,
-        igUserId: account.igUserId,
-        igUsername,
-        pageAccessToken: account.pageAccessToken,
-      },
-      update: {
-        igUserId: account.igUserId,
-        igUsername,
-        pageAccessToken: account.pageAccessToken,
-      },
-    });
+    // Só uma conta encontrada: conecta direto, sem precisar perguntar.
+    if (candidates.length === 1) {
+      const only = candidates[0];
+      await db.instagramAccount.upsert({
+        where: { clientId },
+        create: { clientId, igUserId: only.igUserId, igUsername: only.igUsername, pageAccessToken: only.pageAccessToken },
+        update: { igUserId: only.igUserId, igUsername: only.igUsername, pageAccessToken: only.pageAccessToken },
+      });
+      return redirectTo("connected");
+    }
 
-    return redirectTo("connected");
+    // Mais de uma conta: precisa que o usuário escolha qual pertence a este cliente.
+    await db.instagramPendingSelection.deleteMany({ where: { clientId } });
+    await db.instagramPendingSelection.create({ data: { clientId, candidates } });
+
+    return redirectTo("choose");
   } catch (err) {
     return redirectTo("error", err instanceof Error ? err.message : "Erro desconhecido.");
   }

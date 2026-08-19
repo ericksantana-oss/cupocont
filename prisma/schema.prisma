@@ -97,6 +97,18 @@ model Client {
   @@map("clients")
 }
 
+// Guarda temporariamente as páginas/contas do Instagram encontradas após o
+// login no Facebook, quando há mais de uma opção e o usuário precisa escolher
+// qual pertence a este cliente. Registro de curta duração, apagado após a escolha.
+model InstagramPendingSelection {
+  id         String   @id @default(cuid())
+  clientId   String
+  candidates Json // [{ pageName, igUserId, igUsername, pageAccessToken }]
+  createdAt  DateTime @default(now())
+
+  @@map("instagram_pending_selections")
+}
+
 // Conexão do cliente com a conta comercial do Instagram, via Meta Graph API.
 model InstagramAccount {
   id              String    @id @default(cuid())
