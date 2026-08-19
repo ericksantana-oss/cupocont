@@ -11,6 +11,7 @@ export const ACTIVITY_LABELS: Record<ActivityAction, string> = {
   TEXT_GENERATED: "Texto gerado",
   TEXT_EDITED: "Texto editado",
   TEXT_APPROVED: "Texto aprovado",
+  POST_PUBLISHED: "Post publicado",
 };
 
 // Registra uma ação para o painel admin (progresso, histórico, atividade da equipe).

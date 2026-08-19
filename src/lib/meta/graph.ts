@@ -23,13 +23,25 @@ export function buildAuthorizeUrl(state: string): string {
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
 }
 
-async function graphGet<T>(path: string, params: Record<string, string>): Promise<T> {
+export async function graphGet<T>(path: string, params: Record<string, string>): Promise<T> {
   const url = new URL(`${GRAPH_URL}${path}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
   const res = await fetch(url.toString());
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message ?? "Erro ao consultar a API do Meta.");
+  return data as T;
+}
+
+export async function graphPost<T>(path: string, params: Record<string, string>): Promise<T> {
+  const url = new URL(`${GRAPH_URL}${path}`);
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message ?? "Erro ao publicar na API do Meta.");
   return data as T;
 }
 

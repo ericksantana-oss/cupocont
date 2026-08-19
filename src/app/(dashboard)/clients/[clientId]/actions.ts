@@ -13,7 +13,14 @@ import { buildClientKnowledgeContext, briefingSearchQuery } from "@/lib/ai/conte
 import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemeText } from "@/lib/ai/prompts/generateText";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
-import { uploadClientFile, deleteClientFile, uploadPostMedia, deletePostMedia } from "@/lib/storage";
+import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
+import {
+  uploadClientFile,
+  deleteClientFile,
+  uploadPostMedia,
+  deletePostMedia,
+  getPostMediaSignedUrl,
+} from "@/lib/storage";
 
 function revalidateClient(clientId: string) {
   revalidatePath(`/clients/${clientId}`);
@@ -449,5 +456,84 @@ export async function approveTextAction(clientId: string, textId: string) {
     detail: text.theme.title,
     period: text.theme.briefing.period,
   });
+  revalidateClient(clientId);
+}
+
+// ---------- Publicação ----------
+
+export async function publishNowAction(clientId: string, textId: string, formData: FormData) {
+  const user = await requireClientAccess(clientId);
+
+  const channels = formData.getAll("channels") as string[];
+  const caption = String(formData.get("caption") ?? "").trim();
+  if (channels.length === 0) throw new Error("Selecione ao menos um canal.");
+  if (!caption) throw new Error("A legenda não pode ficar vazia.");
+
+  const text = await db.generatedText.findUniqueOrThrow({
+    where: { id: textId },
+    include: { theme: true },
+  });
+  if (!text.mediaFormat || !text.mediaPaths) throw new Error("Anexe uma mídia antes de publicar.");
+
+  const account = await db.instagramAccount.findUnique({ where: { clientId } });
+  if (!account) throw new Error("Conecte o Instagram/Facebook do cliente antes de publicar.");
+
+  const mediaPaths = text.mediaPaths as string[];
+  const mediaUrls = await Promise.all(mediaPaths.map((p) => getPostMediaSignedUrl(p, 3600)));
+  const format = text.mediaFormat;
+
+  for (const channel of channels) {
+    const post = await db.scheduledPost.create({
+      data: {
+        clientId,
+        textId,
+        channel: channel === "instagram" ? "INSTAGRAM" : "FACEBOOK",
+        format,
+        caption,
+        mediaPaths,
+        scheduledAt: new Date(),
+        status: "PUBLISHING",
+        createdById: user.id,
+      },
+    });
+
+    try {
+      const result =
+        channel === "instagram"
+          ? await publishToInstagram({
+              igUserId: account.igUserId,
+              pageAccessToken: account.pageAccessToken,
+              format,
+              caption,
+              mediaUrls,
+            })
+          : await publishToFacebook({
+              pageId: account.pageId ?? "",
+              pageAccessToken: account.pageAccessToken,
+              format,
+              caption,
+              mediaUrls,
+            });
+
+      await db.scheduledPost.update({
+        where: { id: post.id },
+        data: { status: "PUBLISHED", publishedAt: new Date(), permalink: result.permalink },
+      });
+
+      await logActivity({
+        clientId,
+        userId: user.id,
+        action: "POST_PUBLISHED",
+        detail: `${text.theme.title} (${channel})`,
+      });
+    } catch (err) {
+      const rawMessage = err instanceof Error ? err.message : "Erro desconhecido.";
+      await db.scheduledPost.update({
+        where: { id: post.id },
+        data: { status: "ERROR", errorMessage: translateMetaError(rawMessage), errorRaw: rawMessage },
+      });
+    }
+  }
+
   revalidateClient(clientId);
 }

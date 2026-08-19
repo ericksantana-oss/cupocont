@@ -46,6 +46,7 @@ model User {
   sessions        Session[]
   activityLogs    ActivityLog[]
   marketingEmails MarketingEmail[] @relation("EmailCreator")
+  scheduledPosts  ScheduledPost[]  @relation("PostScheduler")
 
   @@map("users")
 }
@@ -93,6 +94,7 @@ model Client {
   emailFlows     EmailFlow[]
   marketingEmails MarketingEmail[]
   instagramAccount InstagramAccount?
+  scheduledPosts ScheduledPost[]
 
   @@map("clients")
 }
@@ -222,6 +224,7 @@ model GeneratedText {
 
   theme    ContentTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
   editedBy User         @relation("TextEditor", fields: [editedById], references: [id])
+  scheduledPosts ScheduledPost[]
 
   @@map("generated_texts")
 }
@@ -243,6 +246,7 @@ enum ActivityAction {
   TEXT_GENERATED
   TEXT_EDITED
   TEXT_APPROVED
+  POST_PUBLISHED
 }
 
 // Trilha de ações usada pelo painel admin: "o que aconteceu, quem fez, quando".
@@ -324,4 +328,44 @@ model MarketingEmail {
   createdBy User       @relation("EmailCreator", fields: [createdById], references: [id])
 
   @@map("marketing_emails")
+}
+
+enum PublishChannel {
+  INSTAGRAM
+  FACEBOOK
+}
+
+enum PublishStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  ERROR
+}
+
+// Registro de cada tentativa de publicação (imediata ou agendada) num canal.
+// Um mesmo texto aprovado pode gerar um registro por canal escolhido.
+model ScheduledPost {
+  id           String        @id @default(cuid())
+  clientId     String
+  textId       String
+  channel      PublishChannel
+  format       MediaFormat
+  caption      String
+  mediaPaths   Json
+  scheduledAt  DateTime // quando deve/deveria publicar; "agora" = momento da criação
+  status       PublishStatus @default(SCHEDULED)
+  publishedAt  DateTime?
+  permalink    String?
+  errorMessage String? // mensagem traduzida, exibida ao usuário
+  errorRaw     String? // erro técnico original, só pra consulta administrativa
+  createdById  String
+  createdAt    DateTime      @default(now())
+
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  text      GeneratedText  @relation(fields: [textId], references: [id], onDelete: Cascade)
+  createdBy User           @relation("PostScheduler", fields: [createdById], references: [id])
+
+  @@index([clientId])
+  @@index([status, scheduledAt])
+  @@map("scheduled_posts")
 }

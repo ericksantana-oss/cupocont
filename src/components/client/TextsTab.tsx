@@ -1,4 +1,4 @@
-import { PenLine, Sparkles, Image as ImageIcon, Trash2 } from "lucide-react";
+import { PenLine, Sparkles, Image as ImageIcon, Trash2, Send } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,16 @@ import {
   approveTextAction,
   uploadTextMediaAction,
   removeTextMediaAction,
+  publishNowAction,
 } from "@/app/(dashboard)/clients/[clientId]/actions";
+
+const CHANNEL_LABEL: Record<string, string> = { INSTAGRAM: "Instagram", FACEBOOK: "Facebook" };
+const STATUS_LABEL: Record<string, string> = {
+  SCHEDULED: "Agendado",
+  PUBLISHING: "Publicando",
+  PUBLISHED: "Publicado",
+  ERROR: "Erro",
+};
 
 const FORMAT_LABEL: Record<string, string> = {
   IMAGE: "Imagem única",
@@ -26,11 +35,19 @@ export async function TextsTab({ clientId, period }: { clientId: string; period:
     return <div className="cartao p-8 text-center text-sm text-tinta-3">Salve o briefing e selecione temas para gerar os textos.</div>;
   }
 
-  const themes = await db.contentTheme.findMany({
-    where: { briefingId: briefing.id, status: "SELECTED" },
-    orderBy: { createdAt: "asc" },
-    include: { texts: { orderBy: { version: "desc" } } },
-  });
+  const [themes, account] = await Promise.all([
+    db.contentTheme.findMany({
+      where: { briefingId: briefing.id, status: "SELECTED" },
+      orderBy: { createdAt: "asc" },
+      include: { texts: { orderBy: { version: "desc" }, include: { scheduledPosts: { orderBy: { createdAt: "desc" } } } } },
+    }),
+    db.instagramAccount.findUnique({ where: { clientId } }),
+  ]);
+
+  const channels = [
+    ...(account ? [{ value: "instagram", label: "Instagram" }] : []),
+    ...(account?.pageId ? [{ value: "facebook", label: "Facebook" }] : []),
+  ];
 
   return (
     <div className="space-y-6">
@@ -41,7 +58,7 @@ export async function TextsTab({ clientId, period }: { clientId: string; period:
       )}
 
       {themes.map((theme) => (
-        <ThemeTextCard key={theme.id} clientId={clientId} theme={theme} />
+        <ThemeTextCard key={theme.id} clientId={clientId} theme={theme} channels={channels} />
       ))}
     </div>
   );
@@ -50,6 +67,7 @@ export async function TextsTab({ clientId, period }: { clientId: string; period:
 function ThemeTextCard({
   clientId,
   theme,
+  channels,
 }: {
   clientId: string;
   theme: {
@@ -62,8 +80,17 @@ function ThemeTextCard({
       status: string;
       mediaFormat: string | null;
       mediaPaths: unknown;
+      scheduledPosts: {
+        id: string;
+        channel: string;
+        status: string;
+        permalink: string | null;
+        errorMessage: string | null;
+        createdAt: Date;
+      }[];
     }[];
   };
+  channels: { value: string; label: string }[];
 }) {
   const [latest, ...history] = theme.texts;
   const generateAction = generateTextAction.bind(null, clientId, theme.id);
@@ -84,7 +111,7 @@ function ThemeTextCard({
         </Button>
       </form>
 
-      {latest && <EditableText clientId={clientId} text={latest} />}
+      {latest && <EditableText clientId={clientId} text={latest} channels={channels} />}
 
       {history.length > 0 && (
         <details className="mt-4 text-sm text-tinta-3">
@@ -105,15 +132,33 @@ function ThemeTextCard({
 function EditableText({
   clientId,
   text,
+  channels,
 }: {
   clientId: string;
-  text: { id: string; content: string; status: string; mediaFormat: string | null; mediaPaths: unknown };
+  text: {
+    id: string;
+    content: string;
+    status: string;
+    mediaFormat: string | null;
+    mediaPaths: unknown;
+    scheduledPosts?: {
+      id: string;
+      channel: string;
+      status: string;
+      permalink: string | null;
+      errorMessage: string | null;
+      createdAt: Date;
+    }[];
+  };
+  channels: { value: string; label: string }[];
 }) {
   const editAction = editTextAction.bind(null, clientId, text.id);
   const approveAction = approveTextAction.bind(null, clientId, text.id);
   const uploadMediaAction = uploadTextMediaAction.bind(null, clientId, text.id);
   const removeMediaAction = removeTextMediaAction.bind(null, clientId, text.id);
+  const publishAction = publishNowAction.bind(null, clientId, text.id);
   const mediaPaths = (text.mediaPaths as string[] | null) ?? [];
+  const scheduledPosts = text.scheduledPosts ?? [];
 
   return (
     <div className="mt-5 space-y-3">
@@ -166,6 +211,58 @@ function EditableText({
             Aprovar texto
           </Button>
         </form>
+      )}
+
+      {text.status === "APPROVED" && mediaPaths.length > 0 && channels.length > 0 && (
+        <form action={publishAction} className="rounded-controle border border-linha p-4">
+          <h4 className="rotulo mb-2">Publicar / Agendar</h4>
+          <div className="flex flex-wrap gap-4">
+            {channels.map((c) => (
+              <label key={c.value} className="flex items-center gap-1.5 text-sm">
+                <input type="checkbox" name="channels" value={c.value} />
+                {c.label}
+              </label>
+            ))}
+          </div>
+          <Textarea
+            name="caption"
+            defaultValue={text.content}
+            rows={4}
+            className="mt-3 text-sm"
+            placeholder="Legenda a publicar (pode ajustar sem alterar o texto aprovado)"
+          />
+          <Button type="submit" size="sm" className="mt-3">
+            <Send className="mr-1.5 size-4" strokeWidth={1.5} />
+            Publicar agora
+          </Button>
+        </form>
+      )}
+
+      {text.status === "APPROVED" && mediaPaths.length > 0 && channels.length === 0 && (
+        <p className="text-xs text-tinta-3">
+          Conecte o Instagram e/ou Facebook do cliente na aba de Contexto para poder publicar.
+        </p>
+      )}
+
+      {scheduledPosts.length > 0 && (
+        <div className="space-y-1.5 text-xs text-tinta-3">
+          <h4 className="rotulo">Histórico de publicações</h4>
+          {scheduledPosts.map((p) => (
+            <div key={p.id} className="flex flex-wrap items-center gap-2">
+              <Badge variant={p.status === "PUBLISHED" ? "default" : p.status === "ERROR" ? "outline" : "secondary"}>
+                {STATUS_LABEL[p.status] ?? p.status}
+              </Badge>
+              <span>{CHANNEL_LABEL[p.channel] ?? p.channel}</span>
+              <span>{p.createdAt.toLocaleString("pt-BR")}</span>
+              {p.permalink && (
+                <a href={p.permalink} target="_blank" rel="noreferrer" className="text-mata underline">
+                  Ver publicação
+                </a>
+              )}
+              {p.errorMessage && <span className="text-alerta">{p.errorMessage}</span>}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
