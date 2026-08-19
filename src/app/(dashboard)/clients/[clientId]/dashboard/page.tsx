@@ -1,11 +1,19 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
 import { currentPeriod, parsePeriod, periodLabel } from "@/lib/periodo";
 import { PeriodSelect } from "@/components/client/PeriodSelect";
-import { getAccountTotals, getProfileMetrics, getMediaInPeriod, type PeriodMedia } from "@/lib/meta/graph";
+import { ReachLineChart, ComparisonBarChart } from "@/components/client/DashboardCharts";
+import { generateDashboardInsights } from "@/lib/ai/prompts/generateDashboardInsights";
+import {
+  getAccountTotals,
+  getProfileMetrics,
+  getMediaInPeriod,
+  getDailyReach,
+  type PeriodMedia,
+} from "@/lib/meta/graph";
 
 function monthRangeUnix(period: string) {
   const { month, year } = parsePeriod(period);
@@ -32,15 +40,53 @@ const MEDIA_TYPE_LABEL: Record<string, string> = {
   REELS: "Reels",
 };
 
+type SortKey = "date" | "reach" | "likes" | "comments" | "saved" | "shares" | "rate";
+
+function sortMedia(media: PeriodMedia[], sort: SortKey, dir: "asc" | "desc") {
+  const withComputed = media.map((m) => {
+    const interactions = m.like_count + m.comments_count + (m.saved ?? 0) + (m.shares ?? 0);
+    const rate = m.reach ? (interactions / m.reach) * 100 : -1;
+    return { m, rate };
+  });
+
+  const value = (item: (typeof withComputed)[number]): number => {
+    switch (sort) {
+      case "date":
+        return new Date(item.m.timestamp).getTime();
+      case "reach":
+        return item.m.reach ?? -1;
+      case "likes":
+        return item.m.like_count;
+      case "comments":
+        return item.m.comments_count;
+      case "saved":
+        return item.m.saved ?? -1;
+      case "shares":
+        return item.m.shares ?? -1;
+      case "rate":
+        return item.rate;
+    }
+  };
+
+  withComputed.sort((a, b) => (dir === "asc" ? value(a) - value(b) : value(b) - value(a)));
+  return withComputed.map((item) => item.m);
+}
+
 export default async function ClientDashboardPage({
   params,
   searchParams,
 }: {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; sort?: string; dir?: string }>;
 }) {
   const { clientId } = await params;
-  const { period = currentPeriod() } = await searchParams;
+  const { period = currentPeriod(), sort = "date", dir = "desc" } = await searchParams;
+  const sortKey = (["date", "reach", "likes", "comments", "saved", "shares", "rate"] as const).includes(
+    sort as SortKey
+  )
+    ? (sort as SortKey)
+    : "date";
+  const sortDir = dir === "asc" ? "asc" : "desc";
 
   await requireClientAccess(clientId);
 
@@ -79,25 +125,79 @@ export default async function ClientDashboardPage({
 
   const { since, until, prevSince, prevUntil } = monthRangeUnix(period);
 
-  const [totals, prevTotals, profile, media] = await Promise.all([
+  const [totals, prevTotals, profile, media, dailyReach] = await Promise.all([
     getAccountTotals(account.igUserId, account.pageAccessToken, since, until),
     getAccountTotals(account.igUserId, account.pageAccessToken, prevSince, prevUntil),
     getProfileMetrics(account.igUserId, account.pageAccessToken),
     getMediaInPeriod(account.igUserId, account.pageAccessToken, since, until),
+    getDailyReach(account.igUserId, account.pageAccessToken, since, until),
   ]);
 
   const reachDelta = pctChange(totals.reach, prevTotals.reach);
   const profileViewsDelta = pctChange(totals.profileViews, prevTotals.profileViews);
+  const sortedMedia = sortMedia(media, sortKey, sortDir);
+
+  const insights = await generateDashboardInsights({
+    clientName: client.name,
+    period: periodLabel(period),
+    reach: totals.reach,
+    prevReach: prevTotals.reach,
+    profileViews: totals.profileViews,
+    prevProfileViews: prevTotals.profileViews,
+    followers: profile.followers_count ?? 0,
+    media,
+  }).catch(() => []);
+
+  function sortLink(key: SortKey) {
+    const nextDir = sortKey === key && sortDir === "desc" ? "asc" : "desc";
+    return `/clients/${clientId}/dashboard?period=${period}&sort=${key}&dir=${nextDir}`;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       {Header}
-      <p className="mt-1 text-sm text-tinta-3">@{account.igUsername} — {periodLabel(period)}</p>
+      <p className="mt-1 text-sm text-tinta-3">
+        @{account.igUsername} — {periodLabel(period)}
+      </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <MetricCard label="Seguidores atuais" value={profile.followers_count ?? "—"} />
         <MetricCard label="Alcance no período" value={totals.reach} delta={reachDelta} />
         <MetricCard label="Visitas ao perfil" value={totals.profileViews} delta={profileViewsDelta} />
+      </div>
+
+      {insights.length > 0 && (
+        <div className="cartao mt-6 p-6">
+          <h2 className="flex items-center gap-1.5 rotulo">
+            <Sparkles className="size-3.5" strokeWidth={1.5} />
+            Insights do período
+          </h2>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {insights.map((line, i) => (
+              <li key={i}>• {line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-4 lg:grid-cols-2">
+        <div className="cartao p-5">
+          <h2 className="rotulo">Alcance diário</h2>
+          <div className="mt-2">
+            <ReachLineChart data={dailyReach} />
+          </div>
+        </div>
+        <div className="cartao p-5">
+          <h2 className="rotulo">Comparativo com o período anterior</h2>
+          <div className="mt-2">
+            <ComparisonBarChart
+              reach={totals.reach}
+              prevReach={prevTotals.reach}
+              profileViews={totals.profileViews}
+              prevProfileViews={prevTotals.profileViews}
+            />
+          </div>
+        </div>
       </div>
 
       <h2 className="mt-10 rotulo">Postagens do período ({media.length})</h2>
@@ -107,29 +207,55 @@ export default async function ClientDashboardPage({
             <tr>
               <th className="p-3">Post</th>
               <th className="p-3">Tipo</th>
-              <th className="p-3">Alcance</th>
-              <th className="p-3">Curtidas</th>
-              <th className="p-3">Comentários</th>
-              <th className="p-3">Salvos</th>
-              <th className="p-3">Compart.</th>
-              <th className="p-3">Taxa interação</th>
+              <SortableHeader label="Data" sortKey="date" activeSort={sortKey} activeDir={sortDir} href={sortLink("date")} />
+              <SortableHeader label="Alcance" sortKey="reach" activeSort={sortKey} activeDir={sortDir} href={sortLink("reach")} />
+              <SortableHeader label="Curtidas" sortKey="likes" activeSort={sortKey} activeDir={sortDir} href={sortLink("likes")} />
+              <SortableHeader label="Comentários" sortKey="comments" activeSort={sortKey} activeDir={sortDir} href={sortLink("comments")} />
+              <SortableHeader label="Salvos" sortKey="saved" activeSort={sortKey} activeDir={sortDir} href={sortLink("saved")} />
+              <SortableHeader label="Compart." sortKey="shares" activeSort={sortKey} activeDir={sortDir} href={sortLink("shares")} />
+              <SortableHeader label="Taxa interação" sortKey="rate" activeSort={sortKey} activeDir={sortDir} href={sortLink("rate")} />
             </tr>
           </thead>
           <tbody>
-            {media.length === 0 && (
+            {sortedMedia.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-tinta-3">
+                <td colSpan={9} className="p-6 text-center text-tinta-3">
                   Nenhuma postagem encontrada neste período.
                 </td>
               </tr>
             )}
-            {media.map((m) => (
+            {sortedMedia.map((m) => (
               <MediaRow key={m.id} media={m} />
             ))}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeSort,
+  activeDir,
+  href,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeSort: SortKey;
+  activeDir: "asc" | "desc";
+  href: string;
+}) {
+  const isActive = sortKey === activeSort;
+  return (
+    <th className="p-3">
+      <Link href={href} className={`inline-flex items-center gap-1 ${isActive ? "text-mata" : "hover:text-tinta"}`}>
+        {label}
+        <ArrowUpDown className="size-3" strokeWidth={1.5} />
+        {isActive && <span className="text-xs">{activeDir === "asc" ? "↑" : "↓"}</span>}
+      </Link>
+    </th>
   );
 }
 
@@ -160,6 +286,7 @@ function MediaRow({ media }: { media: PeriodMedia }) {
         </a>
       </td>
       <td className="p-3">{MEDIA_TYPE_LABEL[media.media_type] ?? media.media_type}</td>
+      <td className="p-3 whitespace-nowrap">{new Date(media.timestamp).toLocaleDateString("pt-BR")}</td>
       <td className="p-3">{media.reach ?? "—"}</td>
       <td className="p-3">{media.like_count}</td>
       <td className="p-3">{media.comments_count}</td>

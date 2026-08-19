@@ -165,6 +165,31 @@ export async function getAccountTotals(
   }
 }
 
+// Série diária de alcance (pro gráfico), diferente do getAccountTotals que soma tudo num único número.
+export async function getDailyReach(
+  igUserId: string,
+  pageAccessToken: string,
+  sinceUnix: number,
+  untilUnix: number
+): Promise<{ date: string; value: number }[]> {
+  try {
+    const data = await graphGet<{ data: { name: string; values: { end_time: string; value: number }[] }[] }>(
+      `/${igUserId}/insights`,
+      {
+        metric: "reach",
+        period: "day",
+        since: String(sinceUnix),
+        until: String(untilUnix),
+        access_token: pageAccessToken,
+      }
+    );
+    const reachMetric = data.data.find((m) => m.name === "reach");
+    return (reachMetric?.values ?? []).map((v) => ({ date: v.end_time.slice(0, 10), value: v.value }));
+  } catch {
+    return [];
+  }
+}
+
 export interface PeriodMedia {
   id: string;
   caption?: string;
