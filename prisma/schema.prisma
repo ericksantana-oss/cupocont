@@ -361,6 +361,7 @@ model ScheduledPost {
   errorRaw     String? // erro técnico original, só pra consulta administrativa
   createdById  String
   createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   text      GeneratedText? @relation(fields: [textId], references: [id], onDelete: SetNull)

@@ -3,15 +3,30 @@ import { db } from "@/lib/db";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
 import { getPostMediaSignedUrl } from "@/lib/storage";
 
+// No plano gratuito da Vercel o cron roda só 1x/dia, então essa rota
+// precisa dar conta de vários posts vencidos numa única execução.
+// 60s é o máximo permitido no plano Hobby para funções serverless.
+export const maxDuration = 60;
+
+const STALE_PUBLISHING_MINUTES = 10;
+
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
+  // Se uma execução anterior travou (ex: timeout) com um post preso em
+  // "PUBLISHING", libera ele de volta pra "SCHEDULED" pra tentar de novo.
+  const staleCutoff = new Date(Date.now() - STALE_PUBLISHING_MINUTES * 60 * 1000);
+  await db.scheduledPost.updateMany({
+    where: { status: "PUBLISHING", updatedAt: { lte: staleCutoff } },
+    data: { status: "SCHEDULED" },
+  });
+
   const due = await db.scheduledPost.findMany({
     where: { status: "SCHEDULED", scheduledAt: { lte: new Date() } },
-    take: 20,
+    take: 10,
     include: { client: { include: { instagramAccount: true } } },
   });
 
