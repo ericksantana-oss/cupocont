@@ -277,6 +277,203 @@ export async function getScheduledFacebookPosts(pageId: string, pageAccessToken:
     .sort((a, b) => a.scheduledPublishTime.localeCompare(b.scheduledPublishTime));
 }
 
+export interface ActiveStoryInsight {
+  mediaId: string;
+  timestamp: string;
+  impressions: number | null;
+  reach: number | null;
+  interactions: number | null;
+  replies: number | null;
+  shares: number | null;
+  tapsForward: number | null;
+  tapsBack: number | null;
+  exits: number | null;
+  profileVisits: number | null;
+}
+
+// Só existem Stories ativos (< 24h) nesse endpoint — assim que expiram, o Meta não expõe mais o dado.
+// Por isso é preciso rodar isso periodicamente (via cron) e guardar o resultado, pra ter histórico depois.
+export async function getActiveStoriesInsights(igUserId: string, pageAccessToken: string): Promise<ActiveStoryInsight[]> {
+  const stories = await graphGet<{ data: { id: string; timestamp: string }[] }>(`/${igUserId}/stories`, {
+    fields: "id,timestamp",
+    access_token: pageAccessToken,
+  });
+
+  return Promise.all(
+    stories.data.map(async (story) => {
+      const insights = await getStoryInsightsSafely(story.id, pageAccessToken);
+      return { mediaId: story.id, timestamp: story.timestamp, ...insights };
+    })
+  );
+}
+
+async function getStoryInsightsSafely(
+  mediaId: string,
+  pageAccessToken: string
+): Promise<Omit<ActiveStoryInsight, "mediaId" | "timestamp">> {
+  const attempts = [
+    "impressions,reach,interactions,replies,shares,taps_forward,taps_back,exits,profile_visits",
+    "impressions,reach,replies,exits",
+    "impressions,reach",
+  ];
+  for (const metric of attempts) {
+    try {
+      const data = await graphGet<{ data: { name: string; values: { value: number }[] }[] }>(`/${mediaId}/insights`, {
+        metric,
+        access_token: pageAccessToken,
+      });
+      const byName = Object.fromEntries(data.data.map((m) => [m.name, m.values?.[0]?.value ?? 0]));
+      return {
+        impressions: byName.impressions ?? null,
+        reach: byName.reach ?? null,
+        interactions: byName.interactions ?? null,
+        replies: byName.replies ?? null,
+        shares: byName.shares ?? null,
+        tapsForward: byName.taps_forward ?? null,
+        tapsBack: byName.taps_back ?? null,
+        exits: byName.exits ?? null,
+        profileVisits: byName.profile_visits ?? null,
+      };
+    } catch {
+      continue;
+    }
+  }
+  return {
+    impressions: null,
+    reach: null,
+    interactions: null,
+    replies: null,
+    shares: null,
+    tapsForward: null,
+    tapsBack: null,
+    exits: null,
+    profileVisits: null,
+  };
+}
+
+export async function getPageFollowers(pageId: string, pageAccessToken: string): Promise<number | null> {
+  const data = await graphGet<{ followers_count?: number }>(`/${pageId}`, {
+    fields: "followers_count",
+    access_token: pageAccessToken,
+  });
+  return data.followers_count ?? null;
+}
+
+// Totais da Página do Facebook pra um período — reach/visualizações, novos seguidores e engajamento.
+export async function getPageTotals(
+  pageId: string,
+  pageAccessToken: string,
+  sinceUnix: number,
+  untilUnix: number
+): Promise<{ impressions: number; newFollowers: number; engagements: number }> {
+  try {
+    const data = await graphGet<{ data: { name: string; total_value?: { value: number } }[] }>(`/${pageId}/insights`, {
+      metric: "page_impressions_unique,page_fan_adds,page_post_engagements",
+      period: "day",
+      metric_type: "total_value",
+      since: String(sinceUnix),
+      until: String(untilUnix),
+      access_token: pageAccessToken,
+    });
+    const byName = Object.fromEntries(data.data.map((m) => [m.name, m.total_value?.value ?? 0]));
+    return {
+      impressions: byName.page_impressions_unique ?? 0,
+      newFollowers: byName.page_fan_adds ?? 0,
+      engagements: byName.page_post_engagements ?? 0,
+    };
+  } catch {
+    return { impressions: 0, newFollowers: 0, engagements: 0 };
+  }
+}
+
+export interface PagePost {
+  id: string;
+  message?: string;
+  createdTime: string;
+  postType: "Reel" | "Álbum" | "Foto" | "Vídeo" | "Link" | "Status";
+  permalink?: string;
+  impressions: number | null;
+  reactions: number;
+  comments: number;
+  shares: number;
+}
+
+async function getPagePostImpressions(postId: string, pageAccessToken: string): Promise<number | null> {
+  try {
+    const data = await graphGet<{ data: { name: string; values: { value: number }[] }[] }>(`/${postId}/insights`, {
+      metric: "post_impressions_unique",
+      access_token: pageAccessToken,
+    });
+    return data.data[0]?.values?.[0]?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function classifyPageAttachment(type: string | undefined): PagePost["postType"] {
+  switch (type) {
+    case "video_inline":
+    case "video_autoplay":
+    case "video_direct_response":
+      return "Vídeo";
+    case "album":
+      return "Álbum";
+    case "photo":
+      return "Foto";
+    case "share":
+      return "Link";
+    default:
+      return "Status";
+  }
+}
+
+export async function getPagePostsInPeriod(
+  pageId: string,
+  pageAccessToken: string,
+  sinceUnix: number,
+  untilUnix: number
+): Promise<PagePost[]> {
+  const data = await graphGet<{
+    data: {
+      id: string;
+      message?: string;
+      created_time: string;
+      permalink_url?: string;
+      attachments?: { data: { media_type?: string; type?: string }[] };
+      reactions?: { summary?: { total_count?: number } };
+      comments?: { summary?: { total_count?: number } };
+      shares?: { count?: number };
+    }[];
+  }>(`/${pageId}/posts`, {
+    fields:
+      "message,created_time,permalink_url,attachments{media_type,type},reactions.summary(true),comments.summary(true),shares",
+    since: String(sinceUnix),
+    until: String(untilUnix),
+    limit: "100",
+    access_token: pageAccessToken,
+  });
+
+  return Promise.all(
+    data.data.map(async (post) => {
+      const attachmentType = post.attachments?.data?.[0]?.type;
+      const mediaType = post.attachments?.data?.[0]?.media_type;
+      const isReel = attachmentType === "video_inline" && mediaType === "video";
+
+      return {
+        id: post.id,
+        message: post.message,
+        createdTime: post.created_time,
+        permalink: post.permalink_url,
+        postType: isReel ? "Reel" : classifyPageAttachment(attachmentType),
+        impressions: await getPagePostImpressions(post.id, pageAccessToken),
+        reactions: post.reactions?.summary?.total_count ?? 0,
+        comments: post.comments?.summary?.total_count ?? 0,
+        shares: post.shares?.count ?? 0,
+      };
+    })
+  );
+}
+
 // Tenta um conjunto de métricas mais completo primeiro; se a conta/tipo de mídia
 // não suportar alguma delas, cai pra um conjunto menor em vez de falhar tudo.
 async function getMediaInsightsSafely(

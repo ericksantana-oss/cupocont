@@ -115,8 +115,33 @@ model Client {
   marketingEmails MarketingEmail[]
   instagramAccount InstagramAccount?
   scheduledPosts ScheduledPost[]
+  storyInsights  StoryInsight[]
 
   @@map("clients")
+}
+
+// Instantâneo dos Stories ativos capturado pelo cron diário — a API do Meta só expõe
+// Stories das últimas 24h, então esse é o único jeito de acumular histórico pro dashboard.
+model StoryInsight {
+  id            String   @id @default(cuid())
+  clientId      String
+  mediaId       String   @unique
+  timestamp     DateTime // quando o story foi publicado
+  impressions   Int?
+  reach         Int?
+  interactions  Int?
+  replies       Int?
+  shares        Int?
+  tapsForward   Int?
+  tapsBack      Int?
+  exits         Int?
+  profileVisits Int?
+  capturedAt    DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, timestamp])
+  @@map("story_insights")
 }
 
 // Guarda temporariamente as páginas/contas do Instagram encontradas após o

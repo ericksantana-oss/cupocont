@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
-import { getScheduledFacebookPosts } from "@/lib/meta/graph";
+import { getScheduledFacebookPosts, getActiveStoriesInsights } from "@/lib/meta/graph";
 import { getPostMediaSignedUrl } from "@/lib/storage";
 import { fetchAllMarketNews } from "@/lib/news/marketNews";
 
@@ -95,8 +95,55 @@ export async function GET(request: NextRequest) {
 
   const alertsRefreshed = await refreshFacebookSchedulingCache();
   const newsRefreshed = await refreshMarketNews();
+  const storiesCaptured = await captureActiveStories();
 
-  return NextResponse.json({ processed: results.length, results, alertsRefreshed, newsRefreshed });
+  return NextResponse.json({ processed: results.length, results, alertsRefreshed, newsRefreshed, storiesCaptured });
+}
+
+// A API do Meta só expõe Stories ativos (< 24h) — captura o instantâneo de agora e guarda,
+// já que depois que o story expira esse dado some da API pra sempre.
+async function captureActiveStories(): Promise<number> {
+  const accounts = await db.instagramAccount.findMany();
+
+  let captured = 0;
+  await Promise.allSettled(
+    accounts.map(async (account) => {
+      const stories = await getActiveStoriesInsights(account.igUserId, account.pageAccessToken);
+      for (const story of stories) {
+        await db.storyInsight.upsert({
+          where: { mediaId: story.mediaId },
+          create: {
+            clientId: account.clientId,
+            mediaId: story.mediaId,
+            timestamp: new Date(story.timestamp),
+            impressions: story.impressions,
+            reach: story.reach,
+            interactions: story.interactions,
+            replies: story.replies,
+            shares: story.shares,
+            tapsForward: story.tapsForward,
+            tapsBack: story.tapsBack,
+            exits: story.exits,
+            profileVisits: story.profileVisits,
+          },
+          update: {
+            impressions: story.impressions,
+            reach: story.reach,
+            interactions: story.interactions,
+            replies: story.replies,
+            shares: story.shares,
+            tapsForward: story.tapsForward,
+            tapsBack: story.tapsBack,
+            exits: story.exits,
+            profileVisits: story.profileVisits,
+          },
+        });
+        captured += 1;
+      }
+    })
+  );
+
+  return captured;
 }
 
 const MARKET_NEWS_KEEP = 30;
