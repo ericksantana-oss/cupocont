@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, requireAdmin } from "@/lib/auth/guards";
+import { buildSchedulingAlerts, type SchedulingAlert } from "@/lib/metaAlerts";
 
 export async function createClientAction(formData: FormData) {
   await requireAdmin();
@@ -144,4 +145,20 @@ export async function listPendingApprovals(): Promise<PendingApproval[]> {
       clientId: theme.client.id,
       clientName: theme.client.name,
     }));
+}
+
+// Alertas de agendamento fraco/vazio no Facebook, compilados só pros clientes que o usuário atende.
+export async function listSchedulingAlerts(): Promise<SchedulingAlert[]> {
+  const user = await requireUser();
+
+  const clients = await db.client.findMany({
+    where: accessFilterFor(user),
+    select: {
+      id: true,
+      name: true,
+      instagramAccount: { select: { pageId: true, facebookScheduledUntil: true } },
+    },
+  });
+
+  return buildSchedulingAlerts(clients);
 }

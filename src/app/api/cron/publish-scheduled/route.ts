@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
+import { getScheduledFacebookPosts } from "@/lib/meta/graph";
 import { getPostMediaSignedUrl } from "@/lib/storage";
 
 // No plano gratuito da Vercel o cron roda só 1x/dia, então essa rota
@@ -91,5 +92,35 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed: results.length, results });
+  const alertsRefreshed = await refreshFacebookSchedulingCache();
+
+  return NextResponse.json({ processed: results.length, results, alertsRefreshed });
+}
+
+// Atualiza, pra cada cliente com Facebook conectado, até quando ele tem post agendado
+// direto no Meta — usado pra montar os alertas da tela inicial sem chamar a API a cada acesso.
+async function refreshFacebookSchedulingCache(): Promise<number> {
+  const accounts = await db.instagramAccount.findMany({
+    where: { pageId: { not: null } },
+  });
+
+  let refreshed = 0;
+  await Promise.allSettled(
+    accounts.map(async (account) => {
+      const posts = await getScheduledFacebookPosts(account.pageId!, account.pageAccessToken);
+      const lastPost = posts.at(-1);
+
+      await db.instagramAccount.update({
+        where: { id: account.id },
+        data: {
+          facebookScheduledUntil: lastPost ? new Date(lastPost.scheduledPublishTime) : null,
+          facebookScheduledCount: posts.length,
+          facebookScheduleCheckedAt: new Date(),
+        },
+      });
+      refreshed += 1;
+    })
+  );
+
+  return refreshed;
 }
