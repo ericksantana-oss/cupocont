@@ -17,7 +17,7 @@ export function buildAuthorizeUrl(state: string): string {
     state,
     response_type: "code",
     scope:
-      "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_manage_insights,instagram_content_publish,business_management",
+      "pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,instagram_basic,instagram_manage_insights,instagram_content_publish,business_management",
   });
 
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
@@ -352,11 +352,15 @@ async function getStoryInsightsSafely(
 }
 
 export async function getPageFollowers(pageId: string, pageAccessToken: string): Promise<number | null> {
-  const data = await graphGet<{ followers_count?: number }>(`/${pageId}`, {
-    fields: "followers_count",
-    access_token: pageAccessToken,
-  });
-  return data.followers_count ?? null;
+  try {
+    const data = await graphGet<{ followers_count?: number }>(`/${pageId}`, {
+      fields: "followers_count",
+      access_token: pageAccessToken,
+    });
+    return data.followers_count ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // Totais da Página do Facebook pra um período — reach/visualizações, novos seguidores e engajamento.
@@ -433,45 +437,50 @@ export async function getPagePostsInPeriod(
   sinceUnix: number,
   untilUnix: number
 ): Promise<PagePost[]> {
-  const data = await graphGet<{
-    data: {
-      id: string;
-      message?: string;
-      created_time: string;
-      permalink_url?: string;
-      attachments?: { data: { media_type?: string; type?: string }[] };
-      reactions?: { summary?: { total_count?: number } };
-      comments?: { summary?: { total_count?: number } };
-      shares?: { count?: number };
-    }[];
-  }>(`/${pageId}/posts`, {
-    fields:
-      "message,created_time,permalink_url,attachments{media_type,type},reactions.summary(true),comments.summary(true),shares",
-    since: String(sinceUnix),
-    until: String(untilUnix),
-    limit: "100",
-    access_token: pageAccessToken,
-  });
+  try {
+    const data = await graphGet<{
+      data: {
+        id: string;
+        message?: string;
+        created_time: string;
+        permalink_url?: string;
+        attachments?: { data: { media_type?: string; type?: string }[] };
+        reactions?: { summary?: { total_count?: number } };
+        comments?: { summary?: { total_count?: number } };
+        shares?: { count?: number };
+      }[];
+    }>(`/${pageId}/posts`, {
+      fields:
+        "message,created_time,permalink_url,attachments{media_type,type},reactions.summary(true),comments.summary(true),shares",
+      since: String(sinceUnix),
+      until: String(untilUnix),
+      limit: "100",
+      access_token: pageAccessToken,
+    });
 
-  return Promise.all(
-    data.data.map(async (post) => {
-      const attachmentType = post.attachments?.data?.[0]?.type;
-      const mediaType = post.attachments?.data?.[0]?.media_type;
-      const isReel = attachmentType === "video_inline" && mediaType === "video";
+    return await Promise.all(
+      data.data.map(async (post) => {
+        const attachmentType = post.attachments?.data?.[0]?.type;
+        const mediaType = post.attachments?.data?.[0]?.media_type;
+        const isReel = attachmentType === "video_inline" && mediaType === "video";
 
-      return {
-        id: post.id,
-        message: post.message,
-        createdTime: post.created_time,
-        permalink: post.permalink_url,
-        postType: isReel ? "Reel" : classifyPageAttachment(attachmentType),
-        impressions: await getPagePostImpressions(post.id, pageAccessToken),
-        reactions: post.reactions?.summary?.total_count ?? 0,
-        comments: post.comments?.summary?.total_count ?? 0,
-        shares: post.shares?.count ?? 0,
-      };
-    })
-  );
+        return {
+          id: post.id,
+          message: post.message,
+          createdTime: post.created_time,
+          permalink: post.permalink_url,
+          postType: isReel ? "Reel" : classifyPageAttachment(attachmentType),
+          impressions: await getPagePostImpressions(post.id, pageAccessToken),
+          reactions: post.reactions?.summary?.total_count ?? 0,
+          comments: post.comments?.summary?.total_count ?? 0,
+          shares: post.shares?.count ?? 0,
+        };
+      })
+    );
+  } catch {
+    // Falta de permissão (ex: pages_read_user_content antes de reconectar) não pode derrubar o dashboard inteiro.
+    return [];
+  }
 }
 
 // Tenta um conjunto de métricas mais completo primeiro; se a conta/tipo de mídia
