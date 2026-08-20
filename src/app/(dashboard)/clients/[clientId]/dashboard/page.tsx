@@ -1,75 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowUpDown, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Download, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
 import { DateRangeSelect } from "@/components/client/DateRangeSelect";
 import { ReachLineChart, ComparisonBarChart } from "@/components/client/DashboardCharts";
-import { generateDashboardInsights } from "@/lib/ai/prompts/generateDashboardInsights";
-import {
-  getAccountTotals,
-  getProfileMetrics,
-  getMediaInPeriod,
-  getDailyReach,
-  getPageFollowers,
-  getPageTotals,
-  getPagePostsInPeriod,
-  type PeriodMedia,
-  type PagePost,
-} from "@/lib/meta/graph";
-
-function parseDateInput(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
-}
-
-function toInputValue(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function defaultRange(): { from: string; to: string } {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from: toInputValue(from), to: toInputValue(to) };
-}
-
-// Calcula o período anterior com a mesma duração, imediatamente antes do período escolhido —
-// mesma lógica usada nos relatórios do Reportei (ex: 01/07 a 31/07 compara com 01/06 a 30/06).
-function dateRangeUnix(from: string, to: string) {
-  const sinceDate = parseDateInput(from);
-  sinceDate.setHours(0, 0, 0, 0);
-  const untilDate = parseDateInput(to);
-  untilDate.setHours(23, 59, 59, 0);
-
-  const days = Math.round((untilDate.getTime() - sinceDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-
-  const prevUntilDate = new Date(sinceDate.getTime() - 24 * 60 * 60 * 1000);
-  prevUntilDate.setHours(23, 59, 59, 0);
-  const prevSinceDate = new Date(prevUntilDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
-  prevSinceDate.setHours(0, 0, 0, 0);
-
-  return {
-    since: Math.floor(sinceDate.getTime() / 1000),
-    until: Math.floor(untilDate.getTime() / 1000),
-    prevSince: Math.floor(prevSinceDate.getTime() / 1000),
-    prevUntil: Math.floor(prevUntilDate.getTime() / 1000),
-    sinceDate,
-    untilDate,
-  };
-}
-
-function pctChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return ((current - previous) / previous) * 100;
-}
-
-const MEDIA_TYPE_LABEL: Record<string, string> = {
-  IMAGE: "Imagem",
-  VIDEO: "Vídeo",
-  CAROUSEL_ALBUM: "Carrossel",
-  REELS: "Reels",
-};
+import { defaultRange, pctChange, MEDIA_TYPE_LABEL, loadDashboardReportData } from "@/lib/reportData";
+import type { PeriodMedia } from "@/lib/meta/graph";
 
 type SortKey = "date" | "reach" | "likes" | "comments" | "saved" | "shares" | "rate";
 
@@ -125,8 +62,6 @@ export default async function ClientDashboardPage({
   const client = await db.client.findUnique({ where: { id: clientId } });
   if (!client) notFound();
 
-  const account = await db.instagramAccount.findUnique({ where: { clientId } });
-
   const Header = (
     <>
       <Link href={`/clients/${clientId}`} className="inline-flex items-center text-sm text-tinta-3 hover:text-tinta">
@@ -140,7 +75,9 @@ export default async function ClientDashboardPage({
     </>
   );
 
-  if (!account) {
+  const data = await loadDashboardReportData(clientId, from, to);
+
+  if (!data) {
     return (
       <div className="mx-auto max-w-6xl px-6 py-10">
         {Header}
@@ -155,44 +92,26 @@ export default async function ClientDashboardPage({
     );
   }
 
-  const { since, until, prevSince, prevUntil, sinceDate, untilDate } = dateRangeUnix(from, to);
-  const rangeLabel = `${sinceDate.toLocaleDateString("pt-BR")} a ${untilDate.toLocaleDateString("pt-BR")}`;
-
-  const [totals, prevTotals, profile, media, dailyReach, storyInsights] = await Promise.all([
-    getAccountTotals(account.igUserId, account.pageAccessToken, since, until),
-    getAccountTotals(account.igUserId, account.pageAccessToken, prevSince, prevUntil),
-    getProfileMetrics(account.igUserId, account.pageAccessToken),
-    getMediaInPeriod(account.igUserId, account.pageAccessToken, since, until),
-    getDailyReach(account.igUserId, account.pageAccessToken, since, until),
-    db.storyInsight.findMany({
-      where: { clientId, timestamp: { gte: sinceDate, lte: untilDate } },
-      orderBy: { timestamp: "desc" },
-    }),
-  ]);
-
-  const [pageFollowers, pageTotals, prevPageTotals, pagePosts] = account.pageId
-    ? await Promise.all([
-        getPageFollowers(account.pageId, account.pageAccessToken),
-        getPageTotals(account.pageId, account.pageAccessToken, since, until),
-        getPageTotals(account.pageId, account.pageAccessToken, prevSince, prevUntil),
-        getPagePostsInPeriod(account.pageId, account.pageAccessToken, since, until),
-      ])
-    : [null, null, null, [] as PagePost[]];
+  const {
+    igUsername,
+    pageId,
+    rangeLabel,
+    totals,
+    prevTotals,
+    followers,
+    media,
+    dailyReach,
+    storyInsights,
+    pageFollowers,
+    pageTotals,
+    prevPageTotals,
+    pagePosts,
+    insights,
+  } = data;
 
   const reachDelta = pctChange(totals.reach, prevTotals.reach);
   const profileViewsDelta = pctChange(totals.profileViews, prevTotals.profileViews);
   const sortedMedia = sortMedia(media, sortKey, sortDir);
-
-  const insights = await generateDashboardInsights({
-    clientName: client.name,
-    period: rangeLabel,
-    reach: totals.reach,
-    prevReach: prevTotals.reach,
-    profileViews: totals.profileViews,
-    prevProfileViews: prevTotals.profileViews,
-    followers: profile.followers_count ?? 0,
-    media,
-  }).catch(() => []);
 
   function sortLink(key: SortKey) {
     const nextDir = sortKey === key && sortDir === "desc" ? "asc" : "desc";
@@ -220,12 +139,21 @@ export default async function ClientDashboardPage({
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       {Header}
-      <p className="mt-1 text-sm text-tinta-3">
-        @{account.igUsername} — {rangeLabel}
-      </p>
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-tinta-3">
+          @{igUsername} — {rangeLabel}
+        </p>
+        <a
+          href={`/api/clients/${clientId}/report?from=${from}&to=${to}`}
+          className="inline-flex items-center gap-1.5 rounded-controle border border-linha bg-carta px-3 py-1.5 text-sm shadow-carta hover:bg-linha-2"
+        >
+          <Download className="size-4" strokeWidth={1.5} />
+          Baixar PDF
+        </a>
+      </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Seguidores atuais" value={profile.followers_count ?? "—"} />
+        <MetricCard label="Seguidores atuais" value={followers ?? "—"} />
         <MetricCard label="Alcance no período" value={totals.reach} delta={reachDelta} />
         <MetricCard label="Visitas ao perfil" value={totals.profileViews} delta={profileViewsDelta} />
       </div>
@@ -340,7 +268,7 @@ export default async function ClientDashboardPage({
         </div>
       )}
 
-      {account.pageId && (
+      {pageId && (
         <>
           <h2 className="mt-10 rotulo">Dados gerais da página (Facebook)</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-4">
