@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
 import { getScheduledFacebookPosts } from "@/lib/meta/graph";
 import { getPostMediaSignedUrl } from "@/lib/storage";
+import { fetchAllMarketNews } from "@/lib/news/marketNews";
 
 // No plano gratuito da Vercel o cron roda só 1x/dia, então essa rota
 // precisa dar conta de vários posts vencidos numa única execução.
@@ -93,8 +94,37 @@ export async function GET(request: NextRequest) {
   }
 
   const alertsRefreshed = await refreshFacebookSchedulingCache();
+  const newsRefreshed = await refreshMarketNews();
 
-  return NextResponse.json({ processed: results.length, results, alertsRefreshed });
+  return NextResponse.json({ processed: results.length, results, alertsRefreshed, newsRefreshed });
+}
+
+const MARKET_NEWS_KEEP = 30;
+
+// Busca o(s) feed(s) de notícias do mercado imobiliário e mantém só as mais recentes em cache.
+async function refreshMarketNews(): Promise<number> {
+  const items = await fetchAllMarketNews();
+
+  await Promise.allSettled(
+    items.map((item) =>
+      db.marketNews.upsert({
+        where: { guid: item.guid },
+        create: { guid: item.guid, title: item.title, link: item.link, source: item.source, pubDate: item.pubDate },
+        update: { title: item.title, link: item.link, pubDate: item.pubDate },
+      })
+    )
+  );
+
+  const stale = await db.marketNews.findMany({
+    orderBy: { pubDate: "desc" },
+    skip: MARKET_NEWS_KEEP,
+    select: { id: true },
+  });
+  if (stale.length > 0) {
+    await db.marketNews.deleteMany({ where: { id: { in: stale.map((s) => s.id) } } });
+  }
+
+  return items.length;
 }
 
 // Atualiza, pra cada cliente com Facebook conectado, até quando ele tem post agendado

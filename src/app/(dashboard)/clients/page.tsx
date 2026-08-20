@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Clock, Plus, Search, Users2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CupolaMark } from "@/components/CupolaMark";
 import { getSquadLogoPublicUrl } from "@/lib/storage";
 import { periodLabel } from "@/lib/periodo";
-import { listAccessibleClients, listRecentClients, listPendingApprovals, listSchedulingAlerts } from "./actions";
+import { listAccessibleClients, listRecentClients, listPendingApprovals, listSchedulingAlerts, listMarketNews } from "./actions";
 import { describeSchedulingUntil } from "@/lib/metaAlerts";
 
 function greeting(): string {
@@ -28,11 +28,12 @@ export default async function ClientsPage({
 
   const showSquadPicker = (user.role === "ADMIN" || user.role === "INTERN") && !q;
 
-  const [clients, recentClients, pendingApprovals, schedulingAlerts, squads] = await Promise.all([
+  const [clients, recentClients, pendingApprovals, schedulingAlerts, marketNews, squads] = await Promise.all([
     listAccessibleClients(q),
     listRecentClients(),
     listPendingApprovals(),
     listSchedulingAlerts(),
+    listMarketNews(),
     showSquadPicker
       ? db.squad.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { clients: true } } } })
       : Promise.resolve([]),
@@ -115,6 +116,29 @@ export default async function ClientsPage({
             <div className="mt-3 grid gap-4 sm:grid-cols-3">
               {recentClients.map((client) => (
                 <ClientCard key={client.id} id={client.id} name={client.name} niche={client.niche} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {marketNews.length > 0 && !q && (
+          <div className="mb-10">
+            <h2 className="rotulo">Notícias do mercado imobiliário</h2>
+            <div className="cartao mt-3 divide-y divide-linha-2">
+              {marketNews.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex flex-wrap items-center gap-3 p-4 hover:bg-bruma/10"
+                >
+                  <Newspaper className="size-4 shrink-0 text-tinta-3" strokeWidth={1.5} />
+                  <span className="flex-1 truncate text-sm text-tinta-2">{item.title}</span>
+                  <span className="whitespace-nowrap text-xs text-tinta-3">
+                    {item.source} · {item.pubDate.toLocaleDateString("pt-BR")}
+                  </span>
+                </a>
               ))}
             </div>
           </div>

@@ -162,3 +162,9 @@ export async function listSchedulingAlerts(): Promise<SchedulingAlert[]> {
 
   return buildSchedulingAlerts(clients);
 }
+
+// Notícias do mercado imobiliário (feed externo, atualizado 1x/dia pelo cron) — mesmo pra todo mundo.
+export async function listMarketNews(limit = 6) {
+  await requireUser();
+  return db.marketNews.findMany({ orderBy: { pubDate: "desc" }, take: limit });
+}

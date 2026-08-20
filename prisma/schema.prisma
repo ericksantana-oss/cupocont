@@ -397,3 +397,17 @@ model ScheduledPost {
   @@index([status, scheduledAt])
   @@map("scheduled_posts")
 }
+
+// Notícias do mercado imobiliário (feed RSS externo), exibidas na tela inicial pra todo mundo.
+model MarketNews {
+  id        String   @id @default(cuid())
+  guid      String   @unique
+  title     String
+  link      String
+  source    String
+  pubDate   DateTime
+  fetchedAt DateTime @default(now())
+
+  @@index([pubDate])
+  @@map("market_news")
+}
