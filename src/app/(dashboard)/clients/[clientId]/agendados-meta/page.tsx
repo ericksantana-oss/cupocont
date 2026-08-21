@@ -3,7 +3,7 @@ import { ArrowLeft, AlertCircle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
-import { getScheduledFacebookPosts } from "@/lib/meta/graph";
+import { getScheduledFacebookPosts, probeScheduledFacebookPosts } from "@/lib/meta/graph";
 
 // Esta tela mostra o estado atual dos agendamentos no Meta, então nunca pode servir
 // resposta guardada: no Next 14 o fetch entra no Data Cache por padrão, o que faria um
@@ -11,9 +11,16 @@ import { getScheduledFacebookPosts } from "@/lib/meta/graph";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export default async function MetaScheduledPostsPage({ params }: { params: Promise<{ clientId: string }> }) {
+export default async function MetaScheduledPostsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clientId: string }>;
+  searchParams: Promise<{ debug?: string }>;
+}) {
   const { clientId } = await params;
-  await requireClientAccess(clientId);
+  const { debug } = await searchParams;
+  const user = await requireClientAccess(clientId);
 
   const client = await db.client.findUnique({ where: { id: clientId } });
   if (!client) notFound();
@@ -30,6 +37,11 @@ export default async function MetaScheduledPostsPage({ params }: { params: Promi
       loadError = err instanceof Error ? err.message : "Erro ao consultar os agendamentos no Meta.";
     }
   }
+
+  // Diagnóstico temporário: ?debug=1 mostra a resposta crua de cada caminho da API do Meta,
+  // pra descobrir onde o Business Suite guarda os agendamentos. Só admin, somente leitura.
+  const showDebug = debug === "1" && user.role === "ADMIN" && !!account?.pageId;
+  const probe = showDebug ? await probeScheduledFacebookPosts(account!.pageId!, account!.pageAccessToken) : [];
 
   const lastDate = posts.at(-1)?.scheduledPublishTime;
 
@@ -110,6 +122,26 @@ export default async function MetaScheduledPostsPage({ params }: { params: Promi
             </table>
           </div>
         </>
+      )}
+
+      {showDebug && (
+        <div className="mt-10">
+          <h2 className="rotulo">Diagnóstico — resposta crua da API do Meta</h2>
+          <p className="mt-1 text-xs text-tinta-3">
+            Página do Facebook: {account?.pageName} (id {account?.pageId}). Cada bloco é um caminho diferente da API
+            onde o Meta pode guardar agendamentos.
+          </p>
+          <div className="mt-3 space-y-3">
+            {probe.map((item) => (
+              <div key={item.endpoint} className="cartao p-4">
+                <p className="font-mono text-xs font-semibold text-mata">{item.endpoint}</p>
+                <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-controle bg-linha-2 p-3 text-[11px] leading-snug">
+                  {item.resultado}
+                </pre>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

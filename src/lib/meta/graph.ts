@@ -255,6 +255,40 @@ export interface ScheduledFacebookPost {
   createdTime: string;
 }
 
+// Diagnóstico: o Meta guarda agendamentos em mais de um lugar dependendo de como
+// o post foi criado (API, Creator Studio, Business Suite). Consulta cada caminho
+// possível e devolve o que cada um responde, pra descobrir onde o post realmente está.
+export async function probeScheduledFacebookPosts(
+  pageId: string,
+  pageAccessToken: string
+): Promise<{ endpoint: string; resultado: string }[]> {
+  const tentativas: { endpoint: string; params: Record<string, string> }[] = [
+    { endpoint: `/${pageId}/scheduled_posts`, params: { fields: "message,scheduled_publish_time,created_time,is_published" } },
+    { endpoint: `/${pageId}/feed`, params: { fields: "message,scheduled_publish_time,created_time,is_published", is_published: "false" } },
+    { endpoint: `/${pageId}/posts`, params: { fields: "message,scheduled_publish_time,created_time,is_published", is_published: "false" } },
+    { endpoint: `/${pageId}/video_reels`, params: { fields: "scheduled_publish_time,created_time,post_views", is_published: "false" } },
+  ];
+
+  return Promise.all(
+    tentativas.map(async ({ endpoint, params }) => {
+      try {
+        const data = await graphGet<{ data?: unknown[] }>(endpoint, {
+          ...params,
+          limit: "50",
+          access_token: pageAccessToken,
+        });
+        const itens = data.data ?? [];
+        return {
+          endpoint,
+          resultado: `${itens.length} item(ns)\n${JSON.stringify(itens, null, 2)}`,
+        };
+      } catch (err) {
+        return { endpoint, resultado: `ERRO: ${err instanceof Error ? err.message : "desconhecido"}` };
+      }
+    })
+  );
+}
+
 // Espelha os posts que já estão agendados de verdade na Página do Facebook
 // (agendados direto no Meta Business Suite ou por qualquer outra ferramenta) — somente leitura.
 //
