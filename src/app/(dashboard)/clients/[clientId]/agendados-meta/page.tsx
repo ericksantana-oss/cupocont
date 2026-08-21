@@ -132,8 +132,8 @@ export default async function MetaScheduledPostsPage({
             onde o Meta pode guardar agendamentos.
           </p>
           <div className="mt-3 space-y-3">
-            {probe.map((item) => (
-              <div key={item.endpoint} className="cartao p-4">
+            {probe.map((item, i) => (
+              <div key={`${i}-${item.endpoint}`} className="cartao p-4">
                 <p className="font-mono text-xs font-semibold text-mata">{item.endpoint}</p>
                 <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-controle bg-linha-2 p-3 text-[11px] leading-snug">
                   {item.resultado}

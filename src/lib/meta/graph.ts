@@ -267,6 +267,8 @@ export async function probeScheduledFacebookPosts(
     { endpoint: `/${pageId}/feed`, params: { fields: "message,scheduled_publish_time,created_time,is_published", is_published: "false" } },
     { endpoint: `/${pageId}/posts`, params: { fields: "message,scheduled_publish_time,created_time,is_published", is_published: "false" } },
     { endpoint: `/${pageId}/video_reels`, params: { fields: "scheduled_publish_time,created_time,post_views", is_published: "false" } },
+    { endpoint: `/${pageId}/promotable_posts`, params: { fields: "message,scheduled_publish_time,created_time,is_published", is_published: "false" } },
+    { endpoint: `/${pageId}/feed`, params: { fields: "message,scheduled_publish_time,created_time,is_published", published: "false" } },
   ];
 
   return Promise.all(
