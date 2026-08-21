@@ -257,6 +257,11 @@ export interface ScheduledFacebookPost {
 
 // Espelha os posts que já estão agendados de verdade na Página do Facebook
 // (agendados direto no Meta Business Suite ou por qualquer outra ferramenta) — somente leitura.
+//
+// O endpoint devolve também agendamentos antigos que nunca foram publicados e ficaram presos
+// na Página (já vimos casos de 2017). Só interessa o que ainda está por vir, então descartamos
+// qualquer data no passado — isso mantém a lista limpa e evita que o alerta de cobertura
+// calcule "agendado até" a partir de uma data que já passou.
 export async function getScheduledFacebookPosts(pageId: string, pageAccessToken: string): Promise<ScheduledFacebookPost[]> {
   const data = await graphGet<{
     data: { id: string; message?: string; scheduled_publish_time?: number; created_time: string }[];
@@ -266,8 +271,10 @@ export async function getScheduledFacebookPosts(pageId: string, pageAccessToken:
     access_token: pageAccessToken,
   });
 
+  const nowUnix = Math.floor(Date.now() / 1000);
+
   return data.data
-    .filter((post) => post.scheduled_publish_time)
+    .filter((post) => post.scheduled_publish_time && post.scheduled_publish_time > nowUnix)
     .map((post) => ({
       id: post.id,
       message: post.message,

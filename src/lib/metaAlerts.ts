@@ -16,18 +16,23 @@ type ClientWithAccount = {
 
 // Só considera clientes com Facebook conectado — sem isso não há como saber o que está agendado no Meta.
 export function buildSchedulingAlerts(clients: ClientWithAccount[]): SchedulingAlert[] {
-  const thresholdMs = SCHEDULING_ALERT_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
-  const cutoff = Date.now() + thresholdMs;
+  const now = Date.now();
+  const cutoff = now + SCHEDULING_ALERT_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
 
   const alerts: SchedulingAlert[] = [];
   for (const client of clients) {
     const account = client.instagramAccount;
     if (!account?.pageId) continue;
 
-    if (!account.facebookScheduledUntil) {
+    const until = account.facebookScheduledUntil;
+    // Data no passado significa que não há nada agendado à frente — pode acontecer se o
+    // cache ainda não foi atualizado pelo cron desde que o último post agendado venceu.
+    const hasFutureSchedule = until != null && until.getTime() > now;
+
+    if (!hasFutureSchedule) {
       alerts.push({ clientId: client.id, clientName: client.name, kind: "none", until: null });
-    } else if (account.facebookScheduledUntil.getTime() < cutoff) {
-      alerts.push({ clientId: client.id, clientName: client.name, kind: "low", until: account.facebookScheduledUntil });
+    } else if (until!.getTime() < cutoff) {
+      alerts.push({ clientId: client.id, clientName: client.name, kind: "low", until });
     }
   }
   return alerts;
