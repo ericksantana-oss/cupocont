@@ -5,6 +5,12 @@ import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
 import { getScheduledFacebookPosts } from "@/lib/meta/graph";
 
+// Esta tela mostra o estado atual dos agendamentos no Meta, então nunca pode servir
+// resposta guardada: no Next 14 o fetch entra no Data Cache por padrão, o que faria um
+// post recém-agendado não aparecer (ou um já removido continuar na lista).
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 export default async function MetaScheduledPostsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   await requireClientAccess(clientId);
