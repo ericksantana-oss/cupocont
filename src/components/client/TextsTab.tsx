@@ -1,9 +1,11 @@
-import { PenLine, Sparkles, Image as ImageIcon, Trash2, Send } from "lucide-react";
+import { Sparkles, Image as ImageIcon, Trash2, Send } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PieceFieldsEditor } from "@/components/client/PieceFieldsEditor";
+import { PIECE_FORMAT_LABEL, parseSlides, type PieceFormat } from "@/lib/contentPiece";
 import {
   generateTextAction,
   editTextAction,
@@ -81,6 +83,9 @@ function ThemeTextCard({
       status: string;
       mediaFormat: string | null;
       mediaPaths: unknown;
+      pieceFormat: string | null;
+      imageText: string | null;
+      slides: unknown;
       scheduledPosts: {
         id: string;
         channel: string;
@@ -105,10 +110,26 @@ function ThemeTextCard({
       </div>
 
       <form action={generateAction} className="mt-4 space-y-3">
-        <Input name="instructions" placeholder="Instruções extras para a IA (formato, canal, CTA...)" />
+        <div className="space-y-1.5">
+          <label className="rotulo">Formato da peça</label>
+          <div className="flex flex-wrap gap-4">
+            {(Object.keys(PIECE_FORMAT_LABEL) as PieceFormat[]).map((valor) => (
+              <label key={valor} className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio"
+                  name="pieceFormat"
+                  value={valor}
+                  defaultChecked={(latest?.pieceFormat ?? "CARD") === valor}
+                />
+                {PIECE_FORMAT_LABEL[valor]}
+              </label>
+            ))}
+          </div>
+        </div>
+        <Input name="instructions" placeholder="Instruções extras para a IA (ângulo, CTA, o que evitar...)" />
         <Button type="submit">
           <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-          {latest ? "Gerar nova versão" : "Gerar texto final"}
+          {latest ? "Gerar nova versão" : "Gerar peça"}
         </Button>
       </form>
 
@@ -142,6 +163,9 @@ function EditableText({
     status: string;
     mediaFormat: string | null;
     mediaPaths: unknown;
+    pieceFormat: string | null;
+    imageText: string | null;
+    slides: unknown;
     scheduledPosts?: {
       id: string;
       channel: string;
@@ -163,15 +187,13 @@ function EditableText({
 
   return (
     <div className="mt-5 space-y-3">
-      <form action={editAction}>
-        <Textarea name="content" defaultValue={text.content} rows={16} className="text-sm leading-relaxed" />
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="submit" variant="outline">
-            <PenLine className="mr-1.5 size-4" strokeWidth={1.5} />
-            Salvar edição
-          </Button>
-        </div>
-      </form>
+      <PieceFieldsEditor
+        action={editAction}
+        pieceFormat={(text.pieceFormat as PieceFormat | null) ?? null}
+        caption={text.content}
+        imageText={text.imageText}
+        slides={parseSlides(text.slides)}
+      />
 
       <div className="rounded-controle border border-linha p-4">
         <h4 className="rotulo mb-2">Mídia para publicação</h4>

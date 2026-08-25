@@ -272,12 +272,22 @@ model GeneratedText {
   createdAt   DateTime     @default(now())
   mediaFormat MediaFormat?
   mediaPaths  Json? // caminhos no bucket post-media, na ordem de exibição (carrossel)
+  pieceFormat PieceFormat? // escolhido pelo redator antes de gerar
+  imageText   String? // texto que vai na arte do card único (máx 150)
+  slides      Json? // carrossel: [{ role: "CAPA"|"INTERNO"|"CTA", text }] na ordem de exibição
 
   theme    ContentTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
   editedBy User         @relation("TextEditor", fields: [editedById], references: [id])
   scheduledPosts ScheduledPost[]
 
   @@map("generated_texts")
+}
+
+// Formato editorial da peça: card único ou carrossel. Define quais campos de texto
+// a IA preenche e quais limites de caracteres valem na revisão.
+enum PieceFormat {
+  CARD
+  CARROSSEL
 }
 
 enum MediaFormat {

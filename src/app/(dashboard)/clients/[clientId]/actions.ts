@@ -11,7 +11,8 @@ import { processDocument } from "@/lib/rag/process";
 import type { Keyword } from "@/lib/keywords/provider";
 import { buildClientKnowledgeContext, briefingSearchQuery } from "@/lib/ai/contextBuilder";
 import { generateThemes } from "@/lib/ai/prompts/generateThemes";
-import { generateThemeText } from "@/lib/ai/prompts/generateText";
+import { generateThemePiece } from "@/lib/ai/prompts/generateText";
+import { normalizeSlideRoles, parseSlides, type PieceFormat, type Slide } from "@/lib/contentPiece";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
 import {
@@ -313,6 +314,7 @@ export async function generateTextAction(clientId: string, themeId: string, form
   });
 
   const regenerationInstructions = String(formData.get("instructions") ?? "").trim() || undefined;
+  const pieceFormat: PieceFormat = formData.get("pieceFormat") === "CARROSSEL" ? "CARROSSEL" : "CARD";
 
   const lastVersion = await db.generatedText.findFirst({
     where: { themeId },
@@ -324,17 +326,27 @@ export async function generateTextAction(clientId: string, themeId: string, form
     `${theme.title} ${theme.justification}`
   );
 
-  const content = await generateThemeText({
+  const piece = await generateThemePiece({
     client: theme.client,
     briefing: theme.briefing,
     theme,
     clientKnowledgeContext,
+    pieceFormat,
     previousVersion: lastVersion?.content,
     regenerationInstructions,
   });
 
   await db.generatedText.create({
-    data: { themeId, version: (lastVersion?.version ?? 0) + 1, content, status: "DRAFT", editedById: user.id },
+    data: {
+      themeId,
+      version: (lastVersion?.version ?? 0) + 1,
+      content: piece.caption,
+      status: "DRAFT",
+      editedById: user.id,
+      pieceFormat,
+      imageText: piece.imageText,
+      slides: piece.slides.length > 0 ? (piece.slides as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+    },
   });
 
   await logActivity({
@@ -350,11 +362,32 @@ export async function generateTextAction(clientId: string, themeId: string, form
 export async function editTextAction(clientId: string, textId: string, formData: FormData) {
   const user = await requireClientAccess(clientId);
   const content = String(formData.get("content") ?? "").trim();
-  if (!content) throw new Error("O texto não pode ficar vazio.");
+  if (!content) throw new Error("A legenda não pode ficar vazia.");
+
+  const existing = await db.generatedText.findUniqueOrThrow({ where: { id: textId } });
+
+  // Campos de arte: só mexe no que corresponde ao formato da peça, pra não gravar
+  // slides num card nem texto de imagem num carrossel.
+  const imageText =
+    existing.pieceFormat === "CARD" ? String(formData.get("imageText") ?? "").trim() || null : existing.imageText;
+
+  let slides: Slide[] = parseSlides(existing.slides);
+  if (existing.pieceFormat === "CARROSSEL") {
+    const enviados = formData
+      .getAll("slideText")
+      .map((v) => String(v).trim())
+      .filter((t) => t.length > 0);
+    slides = normalizeSlideRoles(enviados.map((text) => ({ role: "INTERNO" as const, text })));
+  }
 
   const text = await db.generatedText.update({
     where: { id: textId },
-    data: { content, editedById: user.id },
+    data: {
+      content,
+      editedById: user.id,
+      imageText,
+      slides: slides.length > 0 ? (slides as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+    },
     include: { theme: { include: { briefing: true } } },
   });
 
