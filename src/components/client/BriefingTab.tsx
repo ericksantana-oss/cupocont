@@ -5,25 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { upsertBriefingAction } from "@/app/(dashboard)/clients/[clientId]/actions";
 
-const FIELDS: Array<{ key: string; label: string; rows: number; placeholder?: string }> = [
-  { key: "goals", label: "Objetivos do mês", rows: 3 },
-  { key: "campaigns", label: "Campanhas em foco", rows: 3 },
-  { key: "highlights", label: "Produtos ou serviços em destaque", rows: 2 },
-  { key: "keyDates", label: "Datas importantes", rows: 2, placeholder: "ex.: 15/05 lançamento, 30/05 webinar" },
-  { key: "restrictions", label: "Restrições (o que não dizer)", rows: 2 },
-];
-
 export async function BriefingTab({ clientId, period }: { clientId: string; period: string }) {
   const briefing = await db.briefing.findUnique({ where: { clientId_period: { clientId, period } } });
   const action = upsertBriefingAction.bind(null, clientId, period);
-
-  const values: Record<string, string> = {
-    goals: briefing?.goals ?? "",
-    campaigns: briefing?.campaigns ?? "",
-    highlights: briefing?.highlights ?? "",
-    keyDates: briefing?.keyDates ?? "",
-    restrictions: briefing?.restrictions ?? "",
-  };
 
   return (
     <form action={action} className="cartao space-y-5 p-6">
@@ -34,18 +18,29 @@ export async function BriefingTab({ clientId, period }: { clientId: string; peri
         </p>
       </div>
 
-      {FIELDS.map((field) => (
-        <div key={field.key} className="space-y-2">
-          <Label htmlFor={field.key}>{field.label}</Label>
-          <Textarea
-            id={field.key}
-            name={field.key}
-            rows={field.rows}
-            placeholder={field.placeholder}
-            defaultValue={values[field.key]}
-          />
-        </div>
-      ))}
+      <div className="space-y-2">
+        <Label htmlFor="goals">Briefing</Label>
+        <Textarea
+          id="goals"
+          name="goals"
+          rows={14}
+          defaultValue={briefing?.goals ?? ""}
+          placeholder="Objetivos do mês, campanhas em foco, produtos em destaque, restrições — tudo o que a IA precisa saber para gerar os temas."
+          className="text-sm leading-relaxed"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="keyDates">Datas comemorativas</Label>
+        <Textarea
+          id="keyDates"
+          name="keyDates"
+          rows={4}
+          defaultValue={briefing?.keyDates ?? ""}
+          placeholder="ex.: 15/08 abertura do estande, 07/09 Independência, 15/09 aniversário do bairro"
+          className="text-sm"
+        />
+      </div>
 
       <Button type="submit">
         <Save className="mr-1.5 size-4" strokeWidth={1.5} />

@@ -230,11 +230,8 @@ model Briefing {
   id           String   @id @default(cuid())
   clientId     String
   period       String // "2026-08"
-  goals        String
-  campaigns    String?
-  keyDates     String?
-  highlights   String? // produtos/temas em destaque
-  restrictions String?
+  goals        String // o briefing inteiro, em texto livre
+  keyDates     String? // datas comemorativas do período
   createdById  String
   createdAt    DateTime @default(now())
 

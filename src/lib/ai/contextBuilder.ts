@@ -3,8 +3,8 @@ import type { Keyword } from "@/lib/keywords/provider";
 import { retrieveRelevantChunks } from "@/lib/rag/retrieve";
 
 // Monta o bloco de "contexto do cliente" (RAG) que entra no prompt da IA.
-// A query de busca semântica usa o briefing (objetivos + destaques) para
-// trazer os trechos da base de conhecimento mais relevantes para o mês.
+// A query de busca semântica usa o briefing para trazer os trechos da base
+// de conhecimento mais relevantes para o mês.
 export async function buildClientKnowledgeContext(clientId: string, searchQuery: string): Promise<string> {
   const chunks = await retrieveRelevantChunks(clientId, searchQuery, 8);
 
@@ -23,18 +23,15 @@ export function formatKeywordsList(keywords: Keyword[]): string {
 export function formatBriefing(briefing: Briefing): string {
   return [
     `Período: ${briefing.period}`,
-    `Objetivos: ${briefing.goals}`,
-    briefing.campaigns ? `Campanhas em andamento: ${briefing.campaigns}` : null,
-    briefing.keyDates ? `Datas importantes: ${briefing.keyDates}` : null,
-    briefing.highlights ? `Produtos/temas em destaque: ${briefing.highlights}` : null,
-    briefing.restrictions ? `Restrições: ${briefing.restrictions}` : null,
+    briefing.goals,
+    briefing.keyDates ? `Datas comemorativas: ${briefing.keyDates}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
 export function briefingSearchQuery(briefing: Briefing): string {
-  return [briefing.goals, briefing.highlights, briefing.campaigns].filter(Boolean).join(" ");
+  return briefing.goals;
 }
 
 export function formatClientInfo(client: Client): string {

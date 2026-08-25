@@ -204,17 +204,14 @@ export async function upsertBriefingAction(clientId: string, period: string, for
   const user = await requireClientAccess(clientId);
 
   const goals = String(formData.get("goals") ?? "").trim();
-  const campaigns = String(formData.get("campaigns") ?? "").trim() || null;
   const keyDates = String(formData.get("keyDates") ?? "").trim() || null;
-  const highlights = String(formData.get("highlights") ?? "").trim() || null;
-  const restrictions = String(formData.get("restrictions") ?? "").trim() || null;
 
-  if (!goals) throw new Error("Objetivos do mês são obrigatórios.");
+  if (!goals) throw new Error("O briefing não pode ficar vazio.");
 
   await db.briefing.upsert({
     where: { clientId_period: { clientId, period } },
-    create: { clientId, period, goals, campaigns, keyDates, highlights, restrictions, createdById: user.id },
-    update: { goals, campaigns, keyDates, highlights, restrictions },
+    create: { clientId, period, goals, keyDates, createdById: user.id },
+    update: { goals, keyDates },
   });
 
   await logActivity({ clientId, userId: user.id, action: "BRIEFING_SAVED", period });

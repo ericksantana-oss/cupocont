@@ -1,4 +1,4 @@
-import { Sparkles, Image as ImageIcon, Trash2, Send } from "lucide-react";
+import { Sparkles, Image as ImageIcon, Trash2, Send, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,25 @@ export async function TextsTab({ clientId, period }: { clientId: string; period:
       {themes.map((theme) => (
         <ThemeTextCard key={theme.id} clientId={clientId} theme={theme} channels={channels} />
       ))}
+
+      {themes.length > 0 && (
+        <div className="cartao flex flex-wrap items-center justify-between gap-4 p-6">
+          <div>
+            <h3 className="font-semibold">Baixar o conteúdo do mês</h3>
+            <p className="mt-1 text-sm text-tinta-3">
+              Um arquivo Markdown com o briefing, as palavras-chave e todos os posts — legenda, texto da arte e
+              cards. Posts ainda não aprovados vêm marcados como rascunho.
+            </p>
+          </div>
+          <a
+            href={`/api/clients/${clientId}/conteudo?period=${period}`}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-controle border border-linha bg-carta px-3 py-1.5 text-sm shadow-carta hover:bg-linha-2"
+          >
+            <Download className="size-4" strokeWidth={1.5} />
+            Baixar .md
+          </a>
+        </div>
+      )}
     </div>
   );
 }
