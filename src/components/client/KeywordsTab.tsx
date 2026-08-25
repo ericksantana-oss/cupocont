@@ -7,8 +7,10 @@ import type { Keyword } from "@/lib/keywords/provider";
 import { addManualKeywordAction } from "@/app/(dashboard)/clients/[clientId]/actions";
 
 export async function KeywordsTab({ clientId, period }: { clientId: string; period: string }) {
+  // Filtra pelo mês: sem isso a aba mostrava os relatórios de todos os meses
+  // misturados, dando a impressão de que os fluxos mensais se cruzam.
   const reports = await db.keywordReport.findMany({
-    where: { clientId },
+    where: { clientId, period },
     orderBy: { createdAt: "desc" },
   });
 

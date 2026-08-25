@@ -1,8 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, CalendarSearch, GitBranch, Mail, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, CalendarSearch, GitBranch, Mail, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
+import { listClientPeriods } from "@/lib/clientPeriods";
+import { periodLabel } from "@/lib/periodo";
+import { AbrirMes } from "@/components/client/AbrirMes";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export default async function ClientSelectorPage({ params }: { params: Promise<{ clientId: string }> }) {
@@ -11,6 +15,8 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
 
   const client = await db.client.findUnique({ where: { id: clientId } });
   if (!client) notFound();
+
+  const periodos = await listClientPeriods(clientId);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -49,14 +55,41 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
         </Link>
       </div>
 
-      <p className="mt-10 rotulo">O que você vai produzir?</p>
+      <div className="mt-10">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="rotulo">Conteúdo para redes sociais por mês</p>
+            <p className="mt-1 text-sm text-tinta-3">
+              Cada mês tem briefing, temas e textos próprios. Dá para trabalhar vários em paralelo e alternar entre
+              eles sem que um interfira no outro.
+            </p>
+          </div>
+          <AbrirMes clientId={clientId} />
+        </div>
+
+        {periodos.length > 0 && (
+          <div className="cartao mt-4 divide-y divide-linha-2">
+            {periodos.map((p) => (
+              <Link
+                key={p.period}
+                href={`/clients/${clientId}/conteudo?period=${p.period}`}
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 hover:bg-bruma/10"
+              >
+                <span className="min-w-[150px] font-medium">{periodLabel(p.period)}</span>
+                <span className="flex-1 text-sm text-tinta-3">
+                  {p.themesSelected} tema(s) selecionado(s) · {p.textsReady} texto(s) gerado(s) ·{" "}
+                  {p.textsApproved} aprovado(s)
+                </span>
+                <Badge variant={p.percent === 100 ? "default" : "secondary"}>{p.percent}%</Badge>
+                <ArrowRight className="size-4 text-tinta-3" strokeWidth={1.5} />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="mt-10 rotulo">Outras produções</p>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
-        <ChoiceCard
-          href={`/clients/${clientId}/conteudo`}
-          icon={<Sparkles className="size-5 text-mata" strokeWidth={1.5} />}
-          title="Conteúdo para redes sociais"
-          description="Palavras-chave, briefing, temas e textos do mês."
-        />
         <ChoiceCard
           href={`/clients/${clientId}/emails/novo?type=pontual`}
           icon={<Mail className="size-5 text-mata" strokeWidth={1.5} />}
