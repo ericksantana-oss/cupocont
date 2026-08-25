@@ -11,10 +11,14 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
-// gemini-3.6-flash e o que o proprio Google indica como atual (o 2.5 responde 404
-// apontando pra ele). Evitar "gemini-3.7-flash" e "gemini-flash-latest": ambos aparecem
-// na listagem de modelos mas penduram sem responder nem dar erro — testado em 20/08/2026.
-export const AI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+// Cuidado ao trocar de modelo — testado em 25/08/2026 nesta chave:
+//   gemini-3.7-flash e gemini-flash-latest: aparecem na listagem de modelos mas PENDURAM,
+//     sem responder nem devolver erro.
+//   gemini-2.5-flash: responde 404 para chaves novas.
+//   gemini-3.6-flash: funciona, mas a cota gratuita é de apenas 20 chamadas por DIA — não
+//     cobre nem um mês de um cliente, que consome 24.
+// Cota gratuita maior costuma estar nos modelos de geração anterior e nos "lite".
+export const AI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
 // Folgado de propósito: os modelos Gemini 3.x gastam parte da saída "pensando" antes
 // de responder, e a geração de 20 temas em JSON é o pedido mais longo da ferramenta.
@@ -23,14 +27,38 @@ const MAX_OUTPUT_TOKENS = 8192;
 
 const MAX_TENTATIVAS = 4;
 
-// Sem isso, uma chamada pendurada trava a acao do redator ate a plataforma matar a
-// funcao. Ja vimos modelo que nao responde nem devolve erro, entao nao e hipotetico.
+// Sem isso, uma chamada pendurada trava a ação do redator até a plataforma matar a
+// função. Já vimos modelo que não responde nem devolve erro, então não é hipotético.
 const TIMEOUT_MS = 120_000;
 
+// Cota diária esgotada não melhora com espera: insistir só queima mais de um minuto
+// antes de falhar igual. Vale distinguir para avisar o redator do que está acontecendo.
+function ehCotaDiariaEsgotada(mensagem: string): boolean {
+  return /PerDay|RequestsPerDay|per day/i.test(mensagem);
+}
+
+function ehLimitePorMinuto(mensagem: string): boolean {
+  return /\b429\b|RESOURCE_EXHAUSTED|rate limit/i.test(mensagem);
+}
+
 function ehErroTemporario(mensagem: string): boolean {
-  // 429 = estourou o limite de chamadas por minuto (comum no plano gratuito, que
-  // permite poucas por minuto); 5xx = instabilidade do lado do Google.
-  return /\b(429|500|502|503|504)\b|RESOURCE_EXHAUSTED|UNAVAILABLE|overloaded|rate limit|abort/i.test(mensagem);
+  if (ehCotaDiariaEsgotada(mensagem)) return false;
+  // 429 por minuto: a janela vira em segundos, vale esperar. 5xx: instabilidade do Google.
+  return /\b(500|502|503|504)\b|UNAVAILABLE|overloaded|abort/i.test(mensagem) || ehLimitePorMinuto(mensagem);
+}
+
+// Traduz o erro cru da API para algo que o redator entenda e saiba o que fazer.
+function mensagemParaOUsuario(bruto: string): string {
+  if (ehCotaDiariaEsgotada(bruto)) {
+    return "A cota diária gratuita da IA acabou. Ela é renovada no dia seguinte — ou o plano pago do Gemini remove esse limite.";
+  }
+  if (ehLimitePorMinuto(bruto)) {
+    return "A IA recusou por limite de chamadas por minuto. Espere um minuto e tente de novo.";
+  }
+  if (/abort/i.test(bruto)) {
+    return "A IA não respondeu no tempo esperado. Tente de novo.";
+  }
+  return `Falha ao gerar conteúdo com a IA: ${bruto}`;
 }
 
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -72,8 +100,8 @@ export async function askAI(system: string, userMessage: string): Promise<string
       const mensagem = err instanceof Error ? err.message : String(err);
 
       if (tentativa < MAX_TENTATIVAS && ehErroTemporario(mensagem)) {
-        // A cota do plano gratuito é por minuto, então esperar 2s não resolve:
-        // precisa dar tempo da janela virar.
+        // A cota por minuto do plano gratuito é curta: esperar 2s não resolve, precisa
+        // dar tempo da janela virar.
         await espera(5000 * 3 ** (tentativa - 1)); // 5s, 15s, 45s
         continue;
       }
@@ -82,5 +110,5 @@ export async function askAI(system: string, userMessage: string): Promise<string
   }
 
   const mensagem = ultimoErro instanceof Error ? ultimoErro.message : String(ultimoErro);
-  throw new Error(`Falha ao gerar conteúdo com a IA: ${mensagem}`);
+  throw new Error(mensagemParaOUsuario(mensagem));
 }

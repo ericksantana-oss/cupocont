@@ -1,4 +1,12 @@
-import { pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
+import os from "os";
+import path from "path";
+import { env as transformersEnv, pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
+
+// Por padrão a biblioteca guarda o modelo baixado dentro de node_modules, que na Vercel
+// é somente leitura (/var/task) — dava ENOENT a cada chamada e forçava rebaixar os ~30MB
+// do modelo sempre. A pasta temporária é gravável e sobrevive entre invocações da mesma
+// instância, então o download acontece uma vez por instância em vez de uma por chamada.
+transformersEnv.cacheDir = process.env.TRANSFORMERS_CACHE || path.join(os.tmpdir(), "transformers-cache");
 
 // Modelo local (open-source, roda dentro do próprio processo Node via ONNX/WASM).
 // Não depende de nenhuma API externa nem de créditos pagos: roda dentro do próprio
