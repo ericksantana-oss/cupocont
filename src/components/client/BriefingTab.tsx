@@ -42,6 +42,18 @@ export async function BriefingTab({ clientId, period }: { clientId: string; peri
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="suggestedThemes">Temas sugeridos pelo redator</Label>
+        <Textarea
+          id="suggestedThemes"
+          name="suggestedThemes"
+          rows={5}
+          defaultValue={briefing?.suggestedThemes ?? ""}
+          placeholder="Um tema por linha. A IA vai começar a lista por eles, adaptando ao tom do cliente, e completar o resto."
+          className="text-sm"
+        />
+      </div>
+
       <Button type="submit">
         <Save className="mr-1.5 size-4" strokeWidth={1.5} />
         {briefing ? "Atualizar briefing" : "Salvar briefing"}

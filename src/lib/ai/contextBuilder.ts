@@ -25,6 +25,8 @@ export function formatBriefing(briefing: Briefing): string {
     `Período: ${briefing.period}`,
     briefing.goals,
     briefing.keyDates ? `Datas comemorativas: ${briefing.keyDates}` : null,
+    briefing.suggestedThemes ? `Temas sugeridos pelo redator:
+${briefing.suggestedThemes}` : null,
   ]
     .filter(Boolean)
     .join("\n");

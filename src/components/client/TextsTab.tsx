@@ -1,10 +1,11 @@
-import { Sparkles, Image as ImageIcon, Trash2, Send, Download } from "lucide-react";
+import { Image as ImageIcon, Trash2, Send, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PieceFieldsEditor } from "@/components/client/PieceFieldsEditor";
+import { BotaoGerar } from "@/components/client/BotaoGerar";
 import { PIECE_FORMAT_LABEL, parseSlides, type PieceFormat } from "@/lib/contentPiece";
 import {
   generateTextAction,
@@ -146,10 +147,7 @@ function ThemeTextCard({
           </div>
         </div>
         <Input name="instructions" placeholder="Instruções extras para a IA (ângulo, CTA, o que evitar...)" />
-        <Button type="submit">
-          <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-          {latest ? "Gerar nova versão" : "Gerar peça"}
-        </Button>
+        <BotaoGerar label={latest ? "Gerar nova versão" : "Gerar peça"} />
       </form>
 
       {latest && <EditableText clientId={clientId} text={latest} channels={channels} />}

@@ -205,13 +205,14 @@ export async function upsertBriefingAction(clientId: string, period: string, for
 
   const goals = String(formData.get("goals") ?? "").trim();
   const keyDates = String(formData.get("keyDates") ?? "").trim() || null;
+  const suggestedThemes = String(formData.get("suggestedThemes") ?? "").trim() || null;
 
   if (!goals) throw new Error("O briefing não pode ficar vazio.");
 
   await db.briefing.upsert({
     where: { clientId_period: { clientId, period } },
-    create: { clientId, period, goals, keyDates, createdById: user.id },
-    update: { goals, keyDates },
+    create: { clientId, period, goals, keyDates, suggestedThemes, createdById: user.id },
+    update: { goals, keyDates, suggestedThemes },
   });
 
   await logActivity({ clientId, userId: user.id, action: "BRIEFING_SAVED", period });

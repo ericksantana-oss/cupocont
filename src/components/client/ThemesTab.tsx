@@ -1,4 +1,5 @@
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, X } from "lucide-react";
+import { BotaoGerar } from "@/components/client/BotaoGerar";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,10 +30,7 @@ export async function ThemesTab({ clientId, period }: { clientId: string; period
           <p className="mt-1 text-sm text-tinta-3">{selectedCount} tema(s) selecionado(s) para virar texto na etapa 5.</p>
         </div>
         <form action={generateAction}>
-          <Button type="submit">
-            <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-            {themes.length === 0 ? "Gerar temas com IA" : "Gerar novamente"}
-          </Button>
+          <BotaoGerar label={themes.length === 0 ? "Gerar temas com IA" : "Gerar novamente"} />
         </form>
       </div>
 

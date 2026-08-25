@@ -22,7 +22,11 @@ Regras obrigatórias:
   tema precisa citar uma keyword literalmente.
 - Respeite os objetivos, campanhas, datas importantes e restrições do briefing.
 - Não repita temas genéricos que ignorem o contexto do cliente.
-- Gere no MÍNIMO 20 temas distintos.
+- Se o briefing traz "Temas sugeridos pelo redator", eles são obrigatórios e vêm PRIMEIRO na
+  lista, na ordem em que aparecem. Você pode reescrever o título para caber no tom de voz do
+  cliente e deve explicar na justificativa como o tema se conecta ao briefing — mas não pode
+  descartar nenhum nem fundir dois numa só entrada. Depois deles, complete com temas seus.
+- Gere no MÍNIMO 20 temas distintos, contando os sugeridos pelo redator.
 
 Responda APENAS com um JSON válido (sem markdown, sem texto antes ou depois), no formato:
 [{"title": "...", "justification": "..."}, ...]
