@@ -72,7 +72,9 @@ export async function askAI(system: string, userMessage: string): Promise<string
       const mensagem = err instanceof Error ? err.message : String(err);
 
       if (tentativa < MAX_TENTATIVAS && ehErroTemporario(mensagem)) {
-        await espera(2000 * 2 ** (tentativa - 1)); // 2s, 4s, 8s
+        // A cota do plano gratuito é por minuto, então esperar 2s não resolve:
+        // precisa dar tempo da janela virar.
+        await espera(5000 * 3 ** (tentativa - 1)); // 5s, 15s, 45s
         continue;
       }
       break;

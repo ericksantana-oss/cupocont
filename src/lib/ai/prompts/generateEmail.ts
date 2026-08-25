@@ -144,12 +144,13 @@ export type GeneratedEmail = GeneratedBody & GeneratedSubjects & { preheader: st
 // Geração completa: usada na criação do e-mail e no "regenerar e-mail inteiro".
 export async function generateFullEmail(ctx: GenerationContext): Promise<GeneratedEmail> {
   const bodyResult = await generateEmailBody(ctx);
-  const [subjects, preheader, ctaText, farewell] = await Promise.all([
-    generateEmailSubjects({ ...ctx, body: bodyResult.body }),
-    generateEmailPreheader({ ...ctx, body: bodyResult.body }),
-    generateEmailCta({ ...ctx, body: bodyResult.body }),
-    generateEmailFarewell(ctx),
-  ]);
+
+  // Sequencial de propósito: em paralelo isso dispara 4 chamadas no mesmo segundo e
+  // estoura o limite por minuto do plano gratuito. Fica mais lento, mas não falha.
+  const subjects = await generateEmailSubjects({ ...ctx, body: bodyResult.body });
+  const preheader = await generateEmailPreheader({ ...ctx, body: bodyResult.body });
+  const ctaText = await generateEmailCta({ ...ctx, body: bodyResult.body });
+  const farewell = await generateEmailFarewell(ctx);
 
   return { ...bodyResult, ...subjects, preheader, ctaText, farewell };
 }
