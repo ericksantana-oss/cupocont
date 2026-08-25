@@ -1,4 +1,4 @@
-import { askClaude } from "@/lib/ai/claude";
+import { askAI } from "@/lib/ai/llm";
 import type { PeriodMedia } from "@/lib/meta/graph";
 
 const SYSTEM = `Você analisa dados de desempenho de Instagram para uma agência que atende exclusivamente
@@ -35,7 +35,7 @@ Visitas ao perfil no período: ${input.profileViews} (mês anterior: ${input.pre
 Posts do período:
 ${postsSummary}`;
 
-  const text = await askClaude(SYSTEM, userMessage);
+  const text = await askAI(SYSTEM, userMessage);
   return text
     .split("\n")
     .map((line) => line.replace(/^-\s*/, "").trim())

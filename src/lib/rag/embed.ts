@@ -1,8 +1,10 @@
 import { pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
 
 // Modelo local (open-source, roda dentro do próprio processo Node via ONNX/WASM).
-// Não depende de nenhuma API externa nem de créditos pagos — a Anthropic não expõe
-// API de embeddings, e esse projeto evita um segundo provedor pago (ex: OpenAI/Voyage).
+// Não depende de nenhuma API externa nem de créditos pagos: roda dentro do próprio
+// processo Node. O Gemini oferece API de embeddings e trocar por ela removeria esta
+// dependência pesada, mas exigiria reprocessar todos os documentos já indexados
+// (dimensão do vetor muda, ver vector(384) no schema).
 // all-MiniLM-L6-v2 produz vetores de 384 dimensões (ver schema: vector(384)).
 const MODEL_NAME = "Xenova/all-MiniLM-L6-v2";
 export const EMBEDDING_DIMENSIONS = 384;

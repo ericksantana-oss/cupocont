@@ -1,4 +1,4 @@
-import { askClaude } from "@/lib/ai/claude";
+import { askAI } from "@/lib/ai/llm";
 import {
   formatBriefing,
   formatClientInfo,
@@ -74,6 +74,6 @@ export async function generateThemes(params: {
     keywordsList: formatKeywordsList(params.keywords),
   });
 
-  const raw = await askClaude(SYSTEM_PROMPT, userMessage);
+  const raw = await askAI(SYSTEM_PROMPT, userMessage);
   return parseThemesResponse(raw);
 }

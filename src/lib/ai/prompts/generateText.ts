@@ -1,4 +1,4 @@
-import { askClaude } from "@/lib/ai/claude";
+import { askAI } from "@/lib/ai/llm";
 import { formatBriefing, formatClientInfo } from "@/lib/ai/contextBuilder";
 import {
   CARD_IMAGE_TEXT_LIMIT,
@@ -132,7 +132,7 @@ export async function generateThemePiece(params: {
   regenerationInstructions?: string;
 }): Promise<GeneratedPiece> {
   const system = params.pieceFormat === "CARD" ? CARD_SYSTEM : CARROSSEL_SYSTEM;
-  const raw = await askClaude(system, buildUserMessage(params));
+  const raw = await askAI(system, buildUserMessage(params));
 
   return params.pieceFormat === "CARD" ? parseCard(raw) : parseCarrossel(raw);
 }

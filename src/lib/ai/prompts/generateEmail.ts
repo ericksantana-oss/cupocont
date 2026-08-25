@@ -1,4 +1,4 @@
-import { askClaude } from "@/lib/ai/claude";
+import { askAI } from "@/lib/ai/llm";
 import { formatClientInfo } from "@/lib/ai/contextBuilder";
 import type { Client } from "@prisma/client";
 
@@ -80,7 +80,7 @@ CARD: <texto curto do card, ou a palavra "nenhum" se não fizer sentido>
 CORPO:
 <corpo completo do e-mail, incluindo a saudação>`;
 
-  const raw = await askClaude(system, buildContextBlock(ctx));
+  const raw = await askAI(system, buildContextBlock(ctx));
   return parseBodyResponse(raw);
 }
 
@@ -105,7 +105,7 @@ Responda EXATAMENTE neste formato:
 A: <assunto A>
 B: <assunto B>`;
 
-  const raw = await askClaude(system, `${buildContextBlock(ctx)}\n\n## Corpo já escrito do e-mail\n${ctx.body}`);
+  const raw = await askAI(system, `${buildContextBlock(ctx)}\n\n## Corpo já escrito do e-mail\n${ctx.body}`);
   return parseSubjects(raw);
 }
 
@@ -115,7 +115,7 @@ export async function generateEmailPreheader(ctx: GenerationContext & { body: st
 Escreva o preheader (texto de prévia que aparece ao lado do assunto na caixa de entrada). Máximo de 40
 caracteres. Responda APENAS com o texto do preheader, nada mais.`;
 
-  const raw = await askClaude(system, `${buildContextBlock(ctx)}\n\n## Corpo já escrito do e-mail\n${ctx.body}`);
+  const raw = await askAI(system, `${buildContextBlock(ctx)}\n\n## Corpo já escrito do e-mail\n${ctx.body}`);
   return raw.trim().slice(0, 40);
 }
 
@@ -125,7 +125,7 @@ export async function generateEmailCta(ctx: GenerationContext & { body: string }
 Escreva SOMENTE o texto do botão de CTA (call to action) deste e-mail — curto, no imperativo, coerente
 com o corpo. Responda APENAS com o texto do botão, sem explicações.`;
 
-  const raw = await askClaude(system, `${buildContextBlock(ctx)}\n\n## Corpo já escrito do e-mail\n${ctx.body}`);
+  const raw = await askAI(system, `${buildContextBlock(ctx)}\n\n## Corpo já escrito do e-mail\n${ctx.body}`);
   return raw.trim().replace(/^["']|["']$/g, "");
 }
 
@@ -135,7 +135,7 @@ async function generateEmailFarewell(ctx: GenerationContext): Promise<string> {
 Escreva uma frase curta de despedida para fechar o e-mail (antes da assinatura), coerente com o tom de
 voz do cliente. Responda APENAS com a frase de despedida.`;
 
-  const raw = await askClaude(system, buildContextBlock(ctx));
+  const raw = await askAI(system, buildContextBlock(ctx));
   return raw.trim();
 }
 
