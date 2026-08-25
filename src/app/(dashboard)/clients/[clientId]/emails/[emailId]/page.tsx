@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
 import { Button } from "@/components/ui/button";
+import { BotaoGerar } from "@/components/client/BotaoGerar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,10 +77,7 @@ export default async function EmailDetailPage({
 
       <div className="mt-4 flex gap-2">
         <form action={regenAll}>
-          <Button type="submit" variant="secondary">
-            <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-            Regenerar e-mail inteiro
-          </Button>
+          <BotaoGerar label="Regenerar e-mail inteiro" variant="secondary" dica="São 5 etapas em sequência, cerca de 1 minuto." />
         </form>
         <CopyToDocumentButton text={formatEmailForDocument(email)} />
       </div>
@@ -116,10 +114,7 @@ export default async function EmailDetailPage({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Assuntos (teste A/B)</h2>
             <form action={regenSubjects}>
-              <Button type="submit" size="sm" variant="ghost">
-                <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-                Regenerar assuntos
-              </Button>
+              <BotaoGerar label="Regenerar assuntos" size="sm" variant="ghost" />
             </form>
           </div>
           <div className="space-y-2">
@@ -136,10 +131,7 @@ export default async function EmailDetailPage({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Preheader (máx. 40 caracteres)</h2>
             <form action={regenPreheader}>
-              <Button type="submit" size="sm" variant="ghost">
-                <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-                Regenerar preheader
-              </Button>
+              <BotaoGerar label="Regenerar preheader" size="sm" variant="ghost" />
             </form>
           </div>
           <Input name="preheader" maxLength={40} defaultValue={email.preheader ?? ""} />
@@ -154,10 +146,7 @@ export default async function EmailDetailPage({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Corpo do e-mail</h2>
             <form action={regenBody}>
-              <Button type="submit" size="sm" variant="ghost">
-                <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-                Regenerar corpo
-              </Button>
+              <BotaoGerar label="Regenerar corpo" size="sm" variant="ghost" />
             </form>
           </div>
           <Textarea name="body" rows={14} className="leading-relaxed" defaultValue={email.body ?? ""} />
@@ -167,10 +156,7 @@ export default async function EmailDetailPage({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">CTA</h2>
             <form action={regenCta}>
-              <Button type="submit" size="sm" variant="ghost">
-                <Sparkles className="mr-1.5 size-4" strokeWidth={1.5} />
-                Regenerar CTA
-              </Button>
+              <BotaoGerar label="Regenerar CTA" size="sm" variant="ghost" />
             </form>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

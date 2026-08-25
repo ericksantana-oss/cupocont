@@ -30,7 +30,7 @@ export async function ThemesTab({ clientId, period }: { clientId: string; period
           <p className="mt-1 text-sm text-tinta-3">{selectedCount} tema(s) selecionado(s) para virar texto na etapa 5.</p>
         </div>
         <form action={generateAction}>
-          <BotaoGerar label={themes.length === 0 ? "Gerar temas com IA" : "Gerar novamente"} />
+          <BotaoGerar label={themes.length === 0 ? "Gerar temas com IA" : "Gerar novamente"} dica="Costuma levar de 15 a 40 segundos." />
         </form>
       </div>
 

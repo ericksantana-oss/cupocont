@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
-import { Button } from "@/components/ui/button";
+import { BotaoGerar } from "@/components/client/BotaoGerar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,7 +85,7 @@ export default async function NewEmailPage({
           />
         </div>
 
-        <Button type="submit">Gerar e-mail</Button>
+        <BotaoGerar label="Gerar e-mail" dica="São 5 etapas em sequência, cerca de 1 minuto." />
       </form>
     </div>
   );

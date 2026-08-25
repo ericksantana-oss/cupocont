@@ -147,7 +147,7 @@ function ThemeTextCard({
           </div>
         </div>
         <Input name="instructions" placeholder="Instruções extras para a IA (ângulo, CTA, o que evitar...)" />
-        <BotaoGerar label={latest ? "Gerar nova versão" : "Gerar peça"} />
+        <BotaoGerar label={latest ? "Gerar nova versão" : "Gerar peça"} dica="Costuma levar de 15 a 40 segundos." />
       </form>
 
       {latest && <EditableText clientId={clientId} text={latest} channels={channels} />}

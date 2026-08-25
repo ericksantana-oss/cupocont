@@ -4,21 +4,22 @@ import { useFormStatus } from "react-dom";
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Botão de submit que mostra que a IA está trabalhando. A geração leva de 15 a 40
-// segundos: sem sinal na tela, a pessoa não sabe se clicou e clica de novo.
+// Botão de submit para qualquer ação que chama a IA. Mostra que está trabalhando,
+// se desabilita e evita o clique duplo — que dispararia duas gerações.
 // useFormStatus só funciona em componente filho do <form>, nunca no próprio form.
 export function BotaoGerar({
   label,
   labelPendente = "A IA está escrevendo...",
-  dica = "Costuma levar de 15 a 40 segundos.",
+  dica,
   size,
   variant,
 }: {
   label: string;
   labelPendente?: string;
+  /** Texto ao lado do botão enquanto gera. Omitido nos botões pequenos, onde poluiria. */
   dica?: string;
   size?: "sm" | "default";
-  variant?: "default" | "outline" | "secondary";
+  variant?: "default" | "outline" | "secondary" | "ghost";
 }) {
   const { pending } = useFormStatus();
 
@@ -38,7 +39,7 @@ export function BotaoGerar({
         )}
       </Button>
 
-      {pending && (
+      {pending && dica && (
         <span className="flex items-center gap-1.5 text-xs text-tinta-3" role="status" aria-live="polite">
           <span className="flex gap-1" aria-hidden="true">
             <span className="size-1.5 animate-pulse rounded-full bg-mata [animation-delay:0ms]" />
