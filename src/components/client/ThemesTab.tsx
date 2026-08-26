@@ -1,5 +1,7 @@
-import { Check, X } from "lucide-react";
+import { Check, X, Repeat2 } from "lucide-react";
 import { BotaoGerar } from "@/components/client/BotaoGerar";
+import { buscarTemasRepetidos, type TemaRepetido } from "@/lib/themeSimilarity";
+import { periodLabel } from "@/lib/periodo";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +16,17 @@ export async function ThemesTab({ clientId, period }: { clientId: string; period
     return <div className="cartao p-8 text-center text-sm text-tinta-3">Salve o briefing do mês na etapa 3 para gerar temas.</div>;
   }
 
-  const themes = await db.contentTheme.findMany({
-    where: { briefingId: briefing.id },
-    orderBy: { createdAt: "asc" },
-  });
+  const [themes, repetidos] = await Promise.all([
+    db.contentTheme.findMany({
+      where: { briefingId: briefing.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    // Compara com o que já virou conteúdo em outros meses deste cliente. Falhar aqui
+    // não pode esconder os temas, então cai para "nenhum repetido".
+    buscarTemasRepetidos(briefing.id).catch(() => [] as TemaRepetido[]),
+  ]);
+
+  const repetidoPorTema = new Map(repetidos.map((r) => [r.themeId, r]));
 
   const generateAction = generateThemesAction.bind(null, clientId, briefing.id);
   const selectedCount = themes.filter((t) => t.status === "SELECTED").length;
@@ -37,7 +46,12 @@ export async function ThemesTab({ clientId, period }: { clientId: string; period
       <div className="grid gap-4 md:grid-cols-2">
         {themes.length === 0 && <p className="col-span-full text-sm text-tinta-3">Nenhum tema gerado ainda.</p>}
         {themes.map((theme) => (
-          <ThemeCard key={theme.id} clientId={clientId} theme={theme} />
+          <ThemeCard
+            key={theme.id}
+            clientId={clientId}
+            theme={theme}
+            repetido={repetidoPorTema.get(theme.id)}
+          />
         ))}
       </div>
     </div>
@@ -47,15 +61,27 @@ export async function ThemesTab({ clientId, period }: { clientId: string; period
 function ThemeCard({
   clientId,
   theme,
+  repetido,
 }: {
   clientId: string;
   theme: { id: string; title: string; justification: string; status: string };
+  repetido?: TemaRepetido;
 }) {
   const decideAction = updateThemeDecisionAction.bind(null, clientId, theme.id);
   const editAction = editThemeAction.bind(null, clientId, theme.id);
 
   return (
     <div className={`cartao p-5 ${theme.status === "DISCARDED" ? "opacity-50" : ""}`}>
+      {repetido && (
+        <div className="mb-3 flex items-start gap-2 rounded-controle bg-alerta/10 p-2.5 text-xs text-tinta-2">
+          <Repeat2 className="mt-0.5 size-3.5 shrink-0 text-alerta" strokeWidth={1.5} />
+          <span>
+            Parecido com um tema já publicado em {periodLabel(repetido.periodoAnterior)}:{" "}
+            <strong className="font-medium">{repetido.tituloAnterior}</strong>
+          </span>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-semibold leading-snug">{theme.title}</h3>
         {theme.status === "SELECTED" && <Badge>Selecionado</Badge>}

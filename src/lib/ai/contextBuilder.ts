@@ -20,13 +20,35 @@ export function formatKeywordsList(keywords: Keyword[]): string {
   return keywords.map((k) => `- ${k.term}${k.volume > 0 ? ` (volume: ${k.volume})` : ""}`).join("\n");
 }
 
+export type TopPerformer = {
+  caption?: string;
+  media_type: string;
+  like_count?: number;
+  comments_count?: number;
+  timestamp: string;
+};
+
+// Lista os posts que mais engajaram no perfil do cliente, para a IA se apoiar em
+// evidência real de audiência em vez de suposição sobre o nicho.
+export function formatTopPerformers(posts: TopPerformer[]): string {
+  if (posts.length === 0) return "";
+
+  return posts
+    .map((post) => {
+      const interacoes = (post.like_count ?? 0) + (post.comments_count ?? 0);
+      const quando = post.timestamp.slice(0, 7);
+      const legenda = (post.caption ?? "(sem legenda)").replace(/\s+/g, " ").slice(0, 180);
+      return `- [${post.media_type}, ${quando}, ${interacoes} interações] ${legenda}`;
+    })
+    .join("\n");
+}
+
 export function formatBriefing(briefing: Briefing): string {
   return [
     `Período: ${briefing.period}`,
     briefing.goals,
     briefing.keyDates ? `Datas comemorativas: ${briefing.keyDates}` : null,
-    briefing.suggestedThemes ? `Temas sugeridos pelo redator:
-${briefing.suggestedThemes}` : null,
+    briefing.suggestedThemes ? `Temas sugeridos pelo redator:\n${briefing.suggestedThemes}` : null,
   ]
     .filter(Boolean)
     .join("\n");

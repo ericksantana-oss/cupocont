@@ -130,7 +130,7 @@ interface InstagramMedia {
   media_type: string;
 }
 
-export async function getTopMedia(igUserId: string, pageAccessToken: string, limit = 25) {
+export async function getTopMedia(igUserId: string, pageAccessToken: string, limit = 25, top = 5) {
   const data = await graphGet<{ data: InstagramMedia[] }>(`/${igUserId}/media`, {
     fields: "caption,like_count,comments_count,timestamp,permalink,media_type",
     limit: String(limit),
@@ -140,7 +140,7 @@ export async function getTopMedia(igUserId: string, pageAccessToken: string, lim
   return data.data
     .map((media) => ({ ...media, engagement: (media.like_count ?? 0) + (media.comments_count ?? 0) }))
     .sort((a, b) => b.engagement - a.engagement)
-    .slice(0, 5);
+    .slice(0, top);
 }
 
 export async function getProfileMetrics(igUserId: string, pageAccessToken: string) {

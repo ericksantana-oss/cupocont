@@ -3,6 +3,8 @@ import {
   formatBriefing,
   formatClientInfo,
   formatKeywordsList,
+  formatTopPerformers,
+  type TopPerformer,
 } from "@/lib/ai/contextBuilder";
 import type { Briefing, Client } from "@prisma/client";
 import type { Keyword } from "@/lib/keywords/provider";
@@ -26,6 +28,10 @@ Regras obrigatórias:
   lista, na ordem em que aparecem. Você pode reescrever o título para caber no tom de voz do
   cliente e deve explicar na justificativa como o tema se conecta ao briefing — mas não pode
   descartar nenhum nem fundir dois numa só entrada. Depois deles, complete com temas seus.
+- Se vier a seção "Posts que mais engajaram neste perfil", trate como evidência do que
+  funciona com esta audiência específica. Reaproveite o ÂNGULO, o formato e o recorte que
+  performaram — não o assunto em si. Repetir o mesmo tema é erro; repetir o que faz aquele
+  público reagir é o objetivo.
 - Gere no MÍNIMO 20 temas distintos, contando os sugeridos pelo redator.
 
 Responda APENAS com um JSON válido (sem markdown, sem texto antes ou depois), no formato:
@@ -38,7 +44,12 @@ function buildUserMessage(params: {
   clientKnowledgeContext: string;
   briefingSummary: string;
   keywordsList: string;
+  topPerformers: string;
 }): string {
+  const blocoDestaques = params.topPerformers
+    ? `\n## Posts que mais engajaram neste perfil\n${params.topPerformers}\n`
+    : "";
+
   return `## Contexto do cliente (base de conhecimento)
 ${params.clientKnowledgeContext}
 
@@ -49,7 +60,7 @@ ${params.briefingSummary}
 
 ## Palavras-chave do período
 ${params.keywordsList}
-
+${blocoDestaques}
 Gere agora a lista de temas em JSON, seguindo as regras do system prompt.`;
 }
 
@@ -70,12 +81,14 @@ export async function generateThemes(params: {
   briefing: Briefing;
   clientKnowledgeContext: string;
   keywords: Keyword[];
+  topPerformers?: TopPerformer[];
 }): Promise<SuggestedTheme[]> {
   const userMessage = buildUserMessage({
     clientInfo: formatClientInfo(params.client),
     clientKnowledgeContext: params.clientKnowledgeContext,
     briefingSummary: formatBriefing(params.briefing),
     keywordsList: formatKeywordsList(params.keywords),
+    topPerformers: formatTopPerformers(params.topPerformers ?? []),
   });
 
   const raw = await askAI(SYSTEM_PROMPT, userMessage);

@@ -246,6 +246,9 @@ model ContentTheme {
   justification String // por que a IA sugeriu esse tema
   status        ThemeStatus @default(SUGGESTED)
   createdAt     DateTime    @default(now())
+  // Vetor do título + justificativa, usado para detectar tema repetido em meses
+  // anteriores do mesmo cliente. Mesmo modelo local dos documentos (384 dimensões).
+  embedding     Unsupported("vector(384)")?
 
   client   Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   briefing Briefing        @relation(fields: [briefingId], references: [id], onDelete: Cascade)

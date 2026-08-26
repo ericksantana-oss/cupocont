@@ -14,6 +14,7 @@ import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemePiece } from "@/lib/ai/prompts/generateText";
 import { normalizeSlideRoles, parseSlides, type PieceFormat, type Slide } from "@/lib/contentPiece";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
+import { indexarTemas } from "@/lib/themeSimilarity";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
 import {
   uploadClientFile,
@@ -240,11 +241,19 @@ export async function generateThemesAction(clientId: string, briefingId: string)
     ? `${ragContext}\n\n[Desempenho recente no Instagram]\n${instagramAccount.summary}`
     : ragContext;
 
+  // Posts que mais engajaram: evidência real do que funciona com esta audiência.
+  // Uma chamada só à API do Meta — olha os últimos 60 posts e devolve os 8 melhores.
+  // Falha de rede aqui não pode impedir a geração, então cai para lista vazia.
+  const topPerformers = instagramAccount
+    ? await getTopMedia(instagramAccount.igUserId, instagramAccount.pageAccessToken, 60, 8).catch(() => [])
+    : [];
+
   const suggested = await generateThemes({
     client,
     briefing,
     clientKnowledgeContext,
     keywords: (keywordReport?.keywords as Keyword[] | undefined) ?? [],
+    topPerformers,
   });
 
   await db.contentTheme.deleteMany({ where: { briefingId, status: "SUGGESTED" } });
@@ -256,6 +265,17 @@ export async function generateThemesAction(clientId: string, briefingId: string)
       justification: theme.justification,
       status: "SUGGESTED",
     })),
+  });
+
+  // Indexa os temas para a detecção de repetição. Depois do createMany porque o Prisma
+  // não escreve coluna de tipo vector. Falhar aqui só desliga o aviso de repetido —
+  // não faz sentido perder 20 temas já gerados por causa disso.
+  const criados = await db.contentTheme.findMany({
+    where: { briefingId, status: "SUGGESTED" },
+    select: { id: true, title: true, justification: true },
+  });
+  await indexarTemas(criados).catch((err) => {
+    console.error("Falha ao indexar temas para detecção de repetição:", err);
   });
 
   await logActivity({
