@@ -116,8 +116,30 @@ model Client {
   instagramAccount InstagramAccount?
   scheduledPosts ScheduledPost[]
   storyInsights  StoryInsight[]
+  metricSnapshots MetricSnapshot[]
 
   @@map("clients")
+}
+
+// Retrato mensal das métricas de cada cliente, gravado pelo cron. O dashboard
+// consulta o Meta ao vivo e não guarda nada, então sem isto não existe histórico:
+// analisar tendência de vários meses seria impossível para sempre, porque o dado
+// não estaria sendo acumulado. Mesmo raciocínio da captura de Stories.
+model MetricSnapshot {
+  id           String   @id @default(cuid())
+  clientId     String
+  period       String // "2026-08"
+  followers    Int?
+  mediaCount   Int?
+  reach        Int? // alcance somado no período
+  profileViews Int?
+  capturedAt   DateTime @updatedAt // o mês corrente é reescrito a cada execução até fechar
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, period])
+  @@index([clientId, period])
+  @@map("metric_snapshots")
 }
 
 // Instantâneo dos Stories ativos capturado pelo cron diário — a API do Meta só expõe
