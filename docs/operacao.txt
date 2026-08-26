@@ -89,6 +89,7 @@ O que ela faz, em ordem:
   2. Libera posts presos em "PUBLISHING" ha mais de 10 minutos
   3. Atualiza o feed de noticias do mercado imobiliario
   4. Captura os Stories ativos das contas conectadas
+  5. Grava o retrato mensal de metricas de cada cliente (2 chamadas por conta)
 
 A autenticacao usa o header Authorization: Bearer <CRON_SECRET>. A Vercel
 injeta sozinha quando a variavel existe.

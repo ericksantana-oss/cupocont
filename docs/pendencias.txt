@@ -1,6 +1,6 @@
 CUPOCONT — PENDENCIAS
 =====================
-Atualizado em 26/08/2026.
+Atualizado em 26/08/2026 (segunda revisao do dia).
 Quando uma pendencia for resolvida, mover para decisoes.txt com o desfecho.
 
 
@@ -23,6 +23,11 @@ Ficou bloqueado por meses por falta de saldo na API. Esse bloqueio caiu em
 
 Destrava: um piloto de um mes real, com um squad e dois clientes.
 Responsavel: Erick.
+
+Nota de 26/08/2026: as regras fixas por cliente (ver decisoes.txt) mudam a
+natureza deste item. A qualidade deixa de depender de alguem ajustar prompt e
+passa a melhorar conforme a equipe corrige no uso. O piloto continua sendo o
+que destrava, mas agora ele tambem ALIMENTA a ferramenta em vez de so avalia-la.
 
 
 [2] Pesquisa de palavras-chave e manual
@@ -132,6 +137,11 @@ para recuperar a original.
 SUGESTOES NAO IMPLEMENTADAS
 ===========================
 Levantadas e nao aprovadas. Registradas para nao se perderem.
+
+Ja saíram desta lista e viraram funcionalidade em 26/08/2026: deteccao de tema
+repetido, desempenho passado alimentando a geracao, snapshot mensal de metricas,
+regras fixas por cliente, copiar briefing do mes anterior e busca semantica.
+Ver decisoes.txt.
 
 
 [10] Campo de "data prevista" por post

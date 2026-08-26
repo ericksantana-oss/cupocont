@@ -193,6 +193,19 @@ Licao geral: limite de similaridade nao se escolhe no chute. Medir com o dado
 real do projeto antes de fixar o numero.
 
 
+Os scores da busca sao comprimidos, e isso e do modelo
+--------------------------------------------------------
+Na busca semantica, medido com os temas reais: uma correspondencia CERTEIRA
+("musica" achando um tema sobre musica) marca ~44%, e uma fraca marca ~40%.
+A faixa util inteira cabe em poucos pontos percentuais.
+
+Consequencia pratica: a ORDEM dos resultados e confiavel, o numero absoluto
+nao. Nao adianta subir o piso para "melhorar a precisao" — subir para 45%
+excluiria a resposta certa do exemplo acima.
+
+Por isso o score aparece na tela: quem busca julga melhor que um corte fixo.
+
+
 PROCESSO DE TRABALHO
 ====================
 

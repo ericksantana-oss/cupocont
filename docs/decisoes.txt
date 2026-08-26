@@ -4,6 +4,70 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+26/08/2026 — Busca semantica no que ja foi produzido
+-----------------------------------------------------
+Tela /busca procura por SENTIDO nos temas ja produzidos: "financiamento" acha
+tema sobre condicoes de pagamento. Reaproveita o indice criado para a deteccao
+de repeticao, sem indice novo.
+
+O filtro de acesso fica DENTRO do SQL, nao aplicado depois nos resultados: se
+fosse depois, o redator descobriria quantos e quais clientes existem fora do
+squad dele pela contagem. Verificado: redator de outro squad recebe zero
+resultados numa busca que devolve cinco para o admin.
+
+Limitacao aceita: o modelo comprime os scores para textos do mesmo dominio —
+uma correspondencia certeira marca ~44% e uma fraca ~40%. A ORDEM e confiavel,
+o numero absoluto nao. Por isso o score aparece na tela, para o proprio usuario
+julgar.
+
+
+26/08/2026 — Briefing do mes anterior como ponto de partida
+------------------------------------------------------------
+Quando o mes esta em branco, a etapa oferece copiar o briefing anterior mais
+recente. 25 clientes x 12 meses eram 300 folhas em branco por ano.
+
+Temas sugeridos NAO sao copiados de proposito: sao a pauta daquele mes, e
+repetir seria pedir a IA que gerasse de novo o que ja foi publicado.
+
+A acao recusa escrever por cima de briefing existente, em vez de substituir
+trabalho em silencio.
+
+
+26/08/2026 — Correcao do redator vira regra fixa do cliente
+------------------------------------------------------------
+Ao regenerar um texto com instrucoes, um checkbox transforma aquela instrucao
+em regra permanente do cliente. As regras aparecem e sao editaveis em Contexto.
+
+Por que importa: antes a correcao morria naquela geracao e a IA repetia o mesmo
+erro no mes seguinte. E a unica mudanca que ataca o bloqueador de qualidade de
+forma ESTRUTURAL — a saida melhora conforme a equipe corrige, em vez de depender
+de uma pessoa ajustando prompt cliente por cliente.
+
+As regras entram dentro de buildClientKnowledgeContext, e nao em cada chamada,
+para que todo prompt do cliente as receba sem depender de alguem lembrar.
+
+Verificado com uma regra que o modelo nao seguiria sozinho: voltou obedecida.
+
+
+26/08/2026 — Retrato mensal de metricas (snapshot)
+---------------------------------------------------
+O cron grava um retrato das metricas de cada cliente por mes, reescrevendo o
+mes corrente ate ele fechar.
+
+Motivo e urgencia: o dashboard consultava o Meta ao vivo e nao guardava nada,
+entao analise de varios meses era impossivel — e continuaria impossivel para
+sempre, porque o dado nao estava sendo acumulado. Mesmo raciocinio da captura
+de Stories: cada mes sem captura e um mes perdido. Por isso foi feita primeiro
+entre as quatro melhorias de 26/08.
+
+Destrava a aba Desempenho no painel admin, que sinaliza cliente com alcance
+caindo ha tres meses seguidos.
+
+Um mes fraco isolado NAO sinaliza: e ruido (campanha que acabou, feriado). O
+mes corrente fica fora da comparacao, porque um mes parcial pareceria queda
+contra um mes inteiro.
+
+
 26/08/2026 — Deteccao de tema repetido, com limite em 80%
 ---------------------------------------------------------
 Cada tema gerado ganha um vetor (modelo local, custo zero) e a aba de temas
