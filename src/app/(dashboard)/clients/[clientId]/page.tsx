@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, CalendarSearch, GitBranch, Mail, Pencil } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, GitBranch, Mail, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
@@ -46,11 +46,6 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
         <Link href={`/clients/${clientId}/dashboard`} className="inline-flex items-center text-sm font-medium text-mata">
           <BarChart3 className="mr-1.5 size-4" strokeWidth={1.5} />
           Dashboard de resultados
-          <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
-        </Link>
-        <Link href={`/clients/${clientId}/agendados-meta`} className="inline-flex items-center text-sm font-medium text-mata">
-          <CalendarSearch className="mr-1.5 size-4" strokeWidth={1.5} />
-          Agendamentos no Meta
           <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
         </Link>
       </div>

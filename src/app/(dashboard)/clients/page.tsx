@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
+import { ArrowRight, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CupolaMark } from "@/components/CupolaMark";
 import { getSquadLogoPublicUrl } from "@/lib/storage";
 import { periodLabel } from "@/lib/periodo";
-import { listAccessibleClients, listRecentClients, listPendingApprovals, listSchedulingAlerts, listMarketNews } from "./actions";
-import { describeSchedulingUntil } from "@/lib/metaAlerts";
+import { listAccessibleClients, listRecentClients, listPendingApprovals, listMarketNews } from "./actions";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -28,11 +27,10 @@ export default async function ClientsPage({
 
   const showSquadPicker = (user.role === "ADMIN" || user.role === "INTERN") && !q;
 
-  const [clients, recentClients, pendingApprovals, schedulingAlerts, marketNews, squads] = await Promise.all([
+  const [clients, recentClients, pendingApprovals, marketNews, squads] = await Promise.all([
     listAccessibleClients(q),
     listRecentClients(),
     listPendingApprovals(),
-    listSchedulingAlerts(),
     listMarketNews(),
     showSquadPicker
       ? db.squad.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { clients: true } } } })
@@ -64,29 +62,6 @@ export default async function ClientsPage({
       </div>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
-        {schedulingAlerts.length > 0 && !q && (
-          <div className="mb-10">
-            <h2 className="rotulo">Agendamento no Meta</h2>
-            <div className="cartao mt-3 divide-y divide-linha-2">
-              {schedulingAlerts.map((alert) => (
-                <Link
-                  key={alert.clientId}
-                  href={`/clients/${alert.clientId}/agendados-meta`}
-                  className="flex flex-wrap items-center gap-3 p-4 hover:bg-bruma/10"
-                >
-                  <AlertTriangle className="size-4 shrink-0 text-alerta" strokeWidth={1.5} />
-                  <span className="flex-1 text-sm text-tinta-2">
-                    <span className="font-medium text-tinta">{alert.clientName}</span>{" "}
-                    {alert.kind === "none"
-                      ? "não tem mais posts agendados no Facebook"
-                      : `só tem post agendado até ${describeSchedulingUntil(alert.until!)}`}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
         {pendingApprovals.length > 0 && !q && (
           <div className="mb-10">
             <h2 className="rotulo">

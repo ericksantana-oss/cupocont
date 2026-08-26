@@ -169,12 +169,6 @@ model InstagramAccount {
   lastSyncedAt    DateTime?
   summary         String? // resumo em texto dos posts/metricas mais recentes, usado como contexto para a IA
 
-  // Cache do último post agendado encontrado no Facebook (via /scheduled_posts), atualizado 1x/dia
-  // pelo cron — evita chamar a API do Meta a cada carregamento da tela inicial pra montar os alertas.
-  facebookScheduledUntil  DateTime?
-  facebookScheduledCount  Int?
-  facebookScheduleCheckedAt DateTime?
-
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@map("instagram_accounts")
