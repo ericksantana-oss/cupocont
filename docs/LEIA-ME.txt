@@ -1,0 +1,46 @@
+CUPOCONT — DOCUMENTACAO DO PROJETO
+==================================
+
+Esta pasta guarda a memoria do projeto: o que foi decidido, o que ficou
+pendente e o que aprendemos apanhando. Serve para nao repetir investigacao
+ja feita nem revisitar decisao ja tomada sem saber o motivo original.
+
+ARQUIVOS
+--------
+
+decisoes.txt     Decisoes tomadas, com data, motivo e o que foi descartado
+                 junto. Ler antes de propor mudanca de rumo.
+
+pendencias.txt   O que esta em aberto, quem depende de quem, e o que
+                 destrava cada item. Ler antes de planejar proximos passos.
+
+aprendizados.txt Armadilhas tecnicas descobertas na pratica, sobretudo das
+                 APIs do Meta e do Gemini. Ler ANTES de mexer nessas
+                 integracoes: quase tudo aqui custou horas para descobrir.
+
+operacao.txt     Como rodar as coisas: migrations, deploy, variaveis de
+                 ambiente, strings de conexao. Consultar na hora de fazer.
+
+
+COMO MANTER
+-----------
+
+Atualizar sempre que:
+
+  - uma decisao for tomada ou revertida  -> decisoes.txt
+  - uma pendencia for resolvida ou criada -> pendencias.txt
+  - um comportamento inesperado for descoberto -> aprendizados.txt
+  - o jeito de operar mudar -> operacao.txt
+
+Regras de escrita:
+
+  - Sempre com data. "Decidimos X" sem data envelhece mal.
+  - Registrar o PORQUE, nao so o que. O motivo e o que evita revisitar.
+  - Registrar tambem o que foi DESCARTADO e por que. Metade do valor
+    esta em nao refazer o caminho que ja se mostrou errado.
+  - Quando uma pendencia for resolvida, mover para decisoes.txt com o
+    desfecho, em vez de apagar. O historico importa.
+  - Quando uma decisao for revertida, manter a original e marcar como
+    REVERTIDA, com a data e o motivo. Nunca reescrever a historia.
+
+Ultima atualizacao: 26/08/2026

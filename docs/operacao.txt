@@ -1,0 +1,121 @@
+CUPOCONT — OPERACAO
+===================
+Como fazer as coisas. Consultar na hora de executar.
+Atualizado em 26/08/2026.
+
+
+O QUE E O PROJETO
+=================
+Ferramenta interna da Cupola para producao de conteudo de clientes do mercado
+imobiliario: pesquisa de palavras-chave, briefing, geracao de temas e textos
+por IA, e-mail marketing e relatorio de resultados.
+
+  Stack       Next.js 14 (App Router), Prisma, PostgreSQL (Supabase) com pgvector
+  IA          Google Gemini (gemini-3.5-flash)
+  Hospedagem  Vercel
+  Repositorio github.com/ericksantana-oss/cupocont
+  Escala      25 clientes, 3 squads, 5 usuarios
+
+
+DEPLOY
+======
+Push na branch main. A Vercel publica sozinha, leva de 1 a 3 minutos.
+
+  git push origin main
+
+Nao existe passo manual de build.
+
+
+MIGRATIONS
+==========
+IMPORTANTE: usar o SESSION pooler (porta 5432). O transaction pooler TRAVA o
+comando sem devolver erro.
+
+  DATABASE_URL="postgresql://postgres.<projeto>:<senha>@aws-0-sa-east-1.pooler.supabase.com:5432/postgres" npx prisma migrate deploy
+
+Localmente, para criar a migration:
+
+  npx prisma migrate dev --name nome_da_migration
+
+Se o banco local nao estiver de pe, da para escrever o SQL a mao em
+prisma/migrations/<timestamp>_<nome>/migration.sql e rodar prisma generate.
+
+
+ORDEM AO REMOVER COLUNA
+-----------------------
+1. Publicar o codigo que nao usa mais a coluna
+2. So depois rodar a migration que dropa
+
+O Prisma seleciona todos os campos escalares por padrao: se a coluna sumir do
+banco antes do codigo novo subir, o codigo antigo quebra. O contrario e
+seguro — codigo que nao conhece a coluna funciona com o banco que ainda a tem.
+
+
+ANTES DE DROPAR, PRESERVAR
+--------------------------
+Se a coluna tem conteudo que importa, dobrar o dado para onde ele vai viver
+NA MESMA migration, antes do DROP. Foi o que se fez com os campos do briefing.
+
+
+VARIAVEIS DE AMBIENTE
+=====================
+Configuradas no painel da Vercel (Settings > Environment Variables).
+
+  DATABASE_URL                    transaction pooler, porta 6543, com ?pgbouncer=true
+  SESSION_SECRET                  assina o cookie de sessao
+  GEMINI_API_KEY                  Google AI Studio
+  GEMINI_MODEL                    opcional; vazio usa gemini-3.5-flash
+  APP_SUPABASE_URL                prefixo APP_ e obrigatorio (ver decisoes.txt)
+  APP_SUPABASE_SERVICE_ROLE_KEY
+  META_APP_ID
+  META_APP_SECRET
+  META_REDIRECT_URI               https://<dominio>/api/meta/callback
+  CRON_SECRET                     protege a rota do cron
+  KEYWORDS_PROVIDER               hoje "mock"
+
+O arquivo .env local nao vai para o Git. .env.example lista o formato.
+
+
+TAREFAS AUTOMATICAS (CRON)
+==========================
+Uma rota so, rodando 1x por dia as 15h (limite do plano gratuito da Vercel).
+Configurada em vercel.json.
+
+  /api/cron/publish-scheduled
+
+O que ela faz, em ordem:
+  1. Publica os posts agendados que venceram (funcionalidade fora do escopo,
+     mas o codigo roda)
+  2. Libera posts presos em "PUBLISHING" ha mais de 10 minutos
+  3. Atualiza o feed de noticias do mercado imobiliario
+  4. Captura os Stories ativos das contas conectadas
+
+A autenticacao usa o header Authorization: Bearer <CRON_SECRET>. A Vercel
+injeta sozinha quando a variavel existe.
+
+
+BUCKETS DO SUPABASE STORAGE
+===========================
+  client-documents  privado, documentos de contexto dos clientes
+  post-media        privado, midia dos posts (URL assinada na hora de usar)
+  squad-logos       publico, logo dos squads (imagem decorativa, exibida sempre)
+
+
+CONECTAR UM CLIENTE AO META
+===========================
+Na tela do cliente > Contexto do cliente > conectar Instagram/Facebook.
+
+Se a conta tiver varias Paginas, aparece uma tela para escolher qual pertence
+aquele cliente.
+
+Reconectar e necessario quando novas permissoes entram no escopo do OAuth:
+token antigo nao ganha permissao nova sozinho.
+
+
+VERIFICACOES ANTES DE PUBLICAR ALTERACAO
+========================================
+  npx tsc --noEmit -p .     typecheck
+  npx next build            build de producao
+
+O build pega coisas que o typecheck nao pega. Se uma rota foi apagada, limpar
+.next antes — os tipos gerados ficam para tras e acusam erro fantasma.

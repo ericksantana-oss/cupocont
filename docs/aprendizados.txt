@@ -1,0 +1,212 @@
+CUPOCONT — APRENDIZADOS
+=======================
+Armadilhas descobertas na pratica. Quase tudo aqui custou horas.
+LER ANTES de mexer nas integracoes do Meta ou do Gemini.
+
+
+API DO GEMINI
+=============
+
+Modelos que aparecem na listagem mas NAO funcionam
+---------------------------------------------------
+Testado em 25/08/2026, com a chave do projeto:
+
+  gemini-3.7-flash      PENDURA. Nao responde e nao devolve erro. Fica em
+                        silencio ate estourar o timeout.
+  gemini-flash-latest   PENDURA, mesmo comportamento (provavelmente aponta
+                        para o 3.7).
+  gemini-2.5-flash      404 para chaves novas, com mensagem indicando o 3.6.
+  gemini-3.6-flash      Funciona, mas cota gratuita de 20 chamadas/dia.
+  gemini-3.5-flash      Funciona. E o padrao atual.
+  gemini-3-flash-preview, gemini-3.1-flash-lite, gemini-3.5-flash-lite:
+                        responderam OK no teste.
+
+Licao: models.list() devolver o modelo NAO significa que ele responde.
+Testar com uma chamada real antes de adotar.
+
+
+A cota gratuita e por dia, e e menor do que a documentacao sugere
+------------------------------------------------------------------
+Blogs e guias falam em 1.000 a 1.500 chamadas/dia no plano gratuito. A API do
+proprio Google respondeu outra coisa para o gemini-3.6-flash:
+
+  quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier
+  quotaValue: 20
+
+Vinte por dia. Um mes de um cliente consome 24.
+
+Licao: a resposta de erro da API e a unica fonte confiavel de cota. O payload
+de 429 traz quotaId, quotaValue e retryDelay — vale ler tudo antes de concluir.
+
+
+429 por dia e 429 por minuto pedem tratamentos opostos
+--------------------------------------------------------
+Os dois chegam como 429 / RESOURCE_EXHAUSTED, mas:
+
+  por minuto -> a janela vira em segundos, vale esperar e tentar de novo
+  por dia    -> esperar nao renova nada; insistir queima mais de um minuto
+                de backoff antes de falhar igual
+
+Distinguir pelo quotaId (contem "PerDay") e falhar rapido no caso diario, com
+mensagem que diga o que aconteceu.
+
+
+Sem timeout, uma chamada pendurada trava a tela para sempre
+-------------------------------------------------------------
+Descoberto por causa do gemini-3.7-flash. O SDK aceita abortSignal em
+config — usar sempre. Hoje: 120s.
+
+
+API DO META
+===========
+
+O Business Suite nao expoe sua fila de agendamento
+----------------------------------------------------
+Nenhum endpoint devolve o que foi agendado pelo compositor unificado do
+Business Suite, nem para Facebook nem para Instagram. Testados sem sucesso:
+
+  /{page-id}/scheduled_posts     so ve o compositor ANTIGO da Pagina
+  /{page-id}/feed?is_published=false
+  /{page-id}/posts?is_published=false
+  /{page-id}/promotable_posts
+  /{page-id}/video_reels
+
+Detalhe importante: o parametro is_published=false e IGNORADO em /feed e
+/posts — eles devolvem os posts publicados normalmente, o que da falsa
+impressao de que a consulta funcionou.
+
+O que agendado no Business Suite so passa a existir no momento em que publica.
+
+Nao e limitacao de implementacao. Nenhuma ferramenta de terceiro consegue.
+
+
+Agendamento do Instagram nao existe por API
+---------------------------------------------
+Nem leitura nem escrita. O Facebook tem scheduled_publish_time; o Instagram
+nao tem equivalente.
+
+
+Stories somem depois de 24h
+-----------------------------
+A API so expoe Stories ativos. Depois que expiram, o dado nao existe em lugar
+nenhum acessivel — nem para o dono da conta.
+
+Por isso a captura diaria: e o unico jeito de acumular historico, e so vale
+para frente. Nao ha como recuperar Stories passados.
+
+
+Permissoes que faltavam e nao eram obvias
+-------------------------------------------
+  pages_read_user_content   necessaria para ler posts da Pagina (reacoes,
+                            comentarios). Sem ela: erro (#10).
+  business_management       necessaria para enxergar Paginas geridas via
+                            Business Manager. Sem ela, so aparecem algumas.
+
+Token antigo NAO ganha permissao nova: e preciso reconectar a conta.
+
+
+/me/accounts vem paginado
+---------------------------
+Sem seguir paging.next, so aparecem as primeiras Paginas. Foi a causa de "so
+6 contas aparecem" quando havia muito mais.
+
+
+NEXT.JS E VERCEL
+================
+
+fetch e cacheado por padrao no Next 14
+----------------------------------------
+Respostas de API externa entram no Data Cache automaticamente. Numa tela que
+mostra estado atual, isso significa servir dado velho.
+
+Para desligar por rota:
+  export const dynamic = "force-dynamic";
+  export const fetchCache = "force-no-store";
+
+
+/var/task e somente leitura
+-----------------------------
+Qualquer biblioteca que tente escrever dentro de node_modules em producao vai
+dar ENOENT. Foi o caso do modelo de embedding, que tentava cachear o download
+ali e rebaixava ~30MB a cada chamada.
+
+Solucao: apontar o cache para a pasta temporaria do sistema (os.tmpdir()),
+que e gravavel e sobrevive entre invocacoes na mesma instancia.
+
+
+SUPABASE E PRISMA
+=================
+
+Session pooler x transaction pooler
+-------------------------------------
+  Migrations (migrate deploy)  -> SESSION pooler, porta 5432
+  Aplicacao em runtime         -> TRANSACTION pooler, porta 6543 + pgbouncer=true
+
+Usar trocado quebra dos dois lados:
+  - migrate deploy no transaction pooler TRAVA sem erro
+  - app no session pooler estoura o limite de 15 conexoes e derruba a
+    aplicacao (erro EMAXCONNSESSION) — ja aconteceu em producao
+
+A "Direct connection" do Supabase e IPv6-only e nao funciona daqui.
+
+
+Prisma: campo Json opcional nao aceita null puro
+--------------------------------------------------
+Usar Prisma.DbNull, nao null.
+
+
+Prisma: createMany nao escreve coluna do tipo vector
+-----------------------------------------------------
+Colunas Unsupported("vector(384)") precisam de UPDATE com SQL cru depois do
+createMany.
+
+
+UPLOAD DE ARQUIVOS
+==================
+
+Nome de arquivo com acento ou espaco quebra a chave do Storage
+----------------------------------------------------------------
+Erro "Invalid key". Normalizar (NFD + remover diacriticos + trocar
+caracteres especiais) antes de subir.
+
+
+Content-Type precisa ser explicito
+------------------------------------
+Passar undefined gera "Invalid Content-Type header". Mapear extensao para MIME
+com fallback em application/octet-stream.
+
+
+BUSCA SEMANTICA (EMBEDDINGS)
+============================
+
+Calibragem do limite de semelhanca entre temas
+------------------------------------------------
+Medido com os temas reais de producao, modelo all-MiniLM-L6-v2:
+
+  temas genuinamente diferentes  ate ~65% de semelhanca
+  tema repetido de proposito     100%
+
+Por isso o limite do aviso ficou em 80%: pega repeticao real e nao sinaliza
+tema que so compartilha o assunto geral.
+
+Licao geral: limite de similaridade nao se escolhe no chute. Medir com o dado
+real do projeto antes de fixar o numero.
+
+
+PROCESSO DE TRABALHO
+====================
+
+Duas funcionalidades podem se anular
+--------------------------------------
+"Alimentar a geracao com o que performou" e "sinalizar tema repetido" puxam
+em direcoes opostas. So convivem porque o prompt diz explicitamente para
+reaproveitar o ANGULO e nao o assunto.
+
+Vale checar interacao entre funcionalidades novas e existentes antes de somar.
+
+
+Tela vazia mente
+------------------
+Uma tela que nao consegue ver o dado, mas se apresenta como se estivesse
+mostrando tudo, e pior do que nao existir. Foi o motivo de remover o
+espelhamento em vez de deixa-lo desligado.

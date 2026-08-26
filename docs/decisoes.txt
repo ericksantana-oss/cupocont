@@ -1,0 +1,221 @@
+CUPOCONT — DECISOES
+===================
+Ordem cronologica inversa: o mais recente primeiro.
+Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
+
+
+26/08/2026 — Deteccao de tema repetido, com limite em 80%
+---------------------------------------------------------
+Cada tema gerado ganha um vetor (modelo local, custo zero) e a aba de temas
+avisa quando um tema se parece com outro que JA VIROU CONTEUDO em outro mes
+do mesmo cliente.
+
+Por que 80%: calibrado com os temas reais de producao. Entre 45 pares de
+temas genuinamente diferentes, o mais parecido deu 65%. O limite em 80% deixa
+folga suficiente para nao encher a tela de falso positivo. Um tema repetido
+injetado de proposito foi pego a 100%.
+
+Compara apenas com temas com status SELECTED. Repetir um tema descartado nao
+e repeticao: ele nunca foi publicado.
+
+Descartado: comparar contra todos os temas (geraria aviso em tema que ninguem
+viu) e fazer uma consulta por tema (20 idas ao banco por carregamento).
+
+
+26/08/2026 — Desempenho passado alimenta a geracao de temas
+------------------------------------------------------------
+Os 8 posts de maior engajamento do perfil entram no prompt como evidencia do
+que funciona com aquela audiencia.
+
+Instrucao explicita: reaproveitar o ANGULO e o formato, nunca o assunto. Sem
+essa distincao, esta decisao brigaria com a deteccao de repeticao acima — uma
+pedindo para repetir o que funcionou, a outra sinalizando repeticao.
+
+Uma unica chamada a API do Meta (getTopMedia sobre os ultimos 60 posts). Se
+falhar, a geracao continua sem os destaques.
+
+
+26/08/2026 — Publicacao pela ferramenta sai do escopo
+------------------------------------------------------
+O codigo continua no projeto, funcionando e sem custo, mas nao entra no
+rollout nem no documento de avaliacao.
+
+Motivos, em ordem de peso:
+  1. Risco. Na geracao de conteudo um humano revisa antes de publicar. Na
+     publicacao a ferramenta age sozinha: falha no dia do lancamento de um
+     cliente so e descoberta quando o cliente pergunta.
+  2. Nunca foi usada. Zero posts publicados em producao — bugs de publicacao
+     no Meta (proporcao, formato, escopo de token) so aparecem no uso real.
+  3. O que substituiria e o Business Suite, que e gratuito, e da propria
+     Meta, publica Instagram e Facebook juntos e a equipe ja domina. A
+     ferramenta entregaria menos, com mais risco.
+
+Descartado: apagar o codigo. Nao custa nada parado e refazer seria trabalho.
+
+Alternativa sugerida e NAO implementada: campo de "data prevista" em cada
+post. Da a mesma visibilidade (mata a duplicacao no ClickUp) sem a ferramenta
+precisar publicar nada. Ver pendencias.txt.
+
+
+26/08/2026 — Espelhamento dos agendamentos do Meta: REMOVIDO
+-------------------------------------------------------------
+Construido, testado em producao e removido no mesmo mes.
+
+Nao e possivel. O Meta nao expoe por API a fila de agendamento do Business
+Suite. Um post agendado la para Facebook e Instagram nunca apareceu, e quatro
+caminhos diferentes da API foram sondados sem resultado. So enxerga
+agendamentos feitos pelo compositor antigo da Pagina, que ninguem usa.
+
+Removido em vez de deixado vazio porque a tela vazia AFIRMAVA o contrario do
+que acontecia: parecia dizer "este cliente nao tem post agendado" quando o
+correto era "nao consigo ver". Informacao errada com aparencia de correta e
+pior que ausencia de informacao.
+
+Os alertas da tela inicial sairam junto, alimentados pela mesma consulta cega.
+
+
+25/08/2026 — Modelo padrao do Gemini: gemini-3.5-flash
+-------------------------------------------------------
+Trocado a partir do gemini-3.6-flash depois de erro em producao: a cota
+gratuita do 3.6 e de 20 chamadas POR DIA, e um mes de um cliente consome 24.
+
+O 3.5-flash e de geracao anterior e tem cota gratuita maior. Configuravel por
+GEMINI_MODEL sem mexer em codigo.
+
+Ver aprendizados.txt: varios modelos listados pela API nao funcionam.
+
+
+25/08/2026 — IA migrada da Anthropic para o Google Gemini
+----------------------------------------------------------
+Toda a geracao passava por uma unica funcao (askClaude), entao a troca ficou
+restrita a esse modulo mais os imports de 4 prompts. Virou askAI em
+lib/ai/llm.ts. O pacote @anthropic-ai/sdk saiu do projeto.
+
+Motivo: a conta da Anthropic estava sem saldo e isso bloqueava avaliar a
+qualidade dos temas e textos — que era o bloqueador principal do MVP.
+
+
+25/08/2026 — Briefing reduzido a dois campos
+---------------------------------------------
+De cinco campos (objetivos, campanhas, destaques, datas, restricoes) para
+dois: "Briefing" em texto livre e "Datas comemorativas".
+
+Motivo: os cinco campos fragmentavam o que na pratica e um pensamento so.
+
+O conteudo dos campos removidos foi dobrado para dentro do texto livre na
+propria migration, antes de dropar as colunas. Nada foi perdido.
+
+Depois somou-se um terceiro campo: "Temas sugeridos pelo redator".
+
+
+25/08/2026 — Temas sugeridos pelo redator sao obrigatorios
+-----------------------------------------------------------
+O que o redator escreve no briefing abre a lista de temas, na ordem em que
+escreveu. A IA pode reescrever o titulo para caber no tom do cliente e deve
+justificar a conexao com o briefing, mas nao pode descartar nem fundir dois
+numa entrada so. Depois deles, completa com os proprios ate 20.
+
+Verificado com o modelo real: as tres sugestoes voltaram nas posicoes 1, 2 e 3.
+
+
+25/08/2026 — Meses funcionam em paralelo, sem se misturar
+-----------------------------------------------------------
+Cada mes tem briefing, temas e textos proprios. Confirmado em producao: um
+cliente ja tinha outubro com 21 temas e agosto vazio, sem interferencia.
+
+O dado sempre esteve separado. O que existia era um vazamento de EXIBICAO: a
+aba de palavras-chave buscava por cliente sem filtrar o mes, mostrando a
+pesquisa de todos os meses junta. Corrigido.
+
+A tela do cliente ganhou a lista de meses com progresso e um seletor para
+abrir qualquer mes, inclusive um sem nada salvo.
+
+
+25/08/2026 — Card e Carrossel escolhidos antes de gerar
+--------------------------------------------------------
+O redator escolhe o formato antes da geracao, e a IA devolve tambem o texto
+que vai na arte.
+
+Limites de caracteres: card unico e capa 150, cards internos 250, CTA 100.
+A IA decide quantos cards o carrossel pede, ate 10.
+
+Os papeis (capa / interno / CTA) sao definidos pela POSICAO, tanto ao salvar
+quanto ao exibir — se a IA devolver os rotulos fora de ordem, a posicao manda.
+
+Contadores ao vivo na revisao. Texto acima do limite fica marcado em vermelho
+mas NAO e cortado automaticamente: quem decide o que cortar e o redator.
+
+
+25/08/2026 — Exportacao do mes em Markdown inclui tudo, com status
+-------------------------------------------------------------------
+O arquivo traz todos os posts, nao so os aprovados, cada um marcado como
+"aprovado" ou "rascunho, ainda nao aprovado", mais um aviso final contando os
+pendentes.
+
+Motivo: exportar so os aprovados faria um post esquecido sumir do entregavel
+sem ninguem perceber.
+
+
+20/08/2026 — Alertas de geracao mostram que a IA esta trabalhando
+------------------------------------------------------------------
+Os 8 botoes que chamam a IA trocam para spinner, se desabilitam e informam o
+tempo aproximado. O desabilitar resolve um problema real: sem sinal na tela,
+dava para clicar duas vezes e disparar duas geracoes.
+
+A dica de tempo so aparece nos 4 botoes de geracao completa. Nos pequenos de
+regenerar campo ela poluiria.
+
+
+20/08/2026 — Cron 1x por dia (plano gratuito da Vercel)
+--------------------------------------------------------
+O plano Hobby nao permite cron mais frequente. Hoje afeta apenas a captura de
+Stories e a busca de noticias, que toleram rodar uma vez ao dia.
+
+Deixou de ser critico quando a publicacao saiu do escopo.
+
+
+20/08/2026 — Hospedagem continua na Vercel
+--------------------------------------------
+Migracao para Cloudflare avaliada e adiada.
+
+Cloudflare Workers (gratuito) nao roda o projeto: sharp e o modelo local de
+busca semantica dependem de codigo nativo que aquele ambiente nao suporta.
+Cloudflare Containers roda, mas exige o plano de US$ 5/mes — nao existe
+versao gratuita de Containers.
+
+Risco conhecido e aceito: o plano Hobby da Vercel veda uso comercial.
+
+
+20/08/2026 — Squads definem o acesso
+--------------------------------------
+Squads: Rita Leads, Michael Squadson, Leadney Spears.
+
+Regra de acesso: ADMIN e INTERN veem todos os clientes. WRITER ve
+automaticamente os clientes do proprio squad, e ganha acesso a cliente de
+outro squad por liberacao pontual (ClientAccess), sem precisar trocar de squad.
+
+INTERN existe para o estagiario, que ajuda em todos os clientes mas nao deve
+ver o painel administrativo.
+
+
+20/08/2026 — Agrupamento de clientes na importacao
+----------------------------------------------------
+Etmos: um cliente so. Batel e Sonata sao empreendimentos que ele atende, nao
+clientes separados.
+
+Floresta e Atello: um cliente cada.
+
+
+19/08/2026 — Variaveis de ambiente com prefixo APP_
+-----------------------------------------------------
+APP_SUPABASE_URL e APP_SUPABASE_SERVICE_ROLE_KEY, e nao SUPABASE_*.
+
+Motivo: qualquer variavel comecando com SUPABASE_ fica presa no namespace
+reservado pela integracao automatica Vercel<->Supabase, inacessivel pelo
+formulario normal de variaveis.
+
+
+19/08/2026 — Agencia atende exclusivamente mercado imobiliario
+----------------------------------------------------------------
+Todo exemplo, prompt e material do projeto deve usar contexto imobiliario.
+Nunca usar exemplos de outros segmentos.

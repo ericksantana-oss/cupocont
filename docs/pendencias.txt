@@ -1,0 +1,172 @@
+CUPOCONT — PENDENCIAS
+=====================
+Atualizado em 26/08/2026.
+Quando uma pendencia for resolvida, mover para decisoes.txt com o desfecho.
+
+
+BLOQUEADORES
+============
+Impedem o MVP avancar. Nada mais importa antes destes.
+
+
+[1] Qualidade dos temas e textos nunca foi avaliada
+----------------------------------------------------
+Ninguem sentou para ler 20 temas e 12 textos com olhar editorial e dizer
+"isso presta" ou "isso precisa de outro prompt".
+
+Por que e o mais importante: toda a economia de 3h por cliente depende disso.
+Se os textos precisarem de reescrita pesada, a economia nao existe e a
+prioridade passa a ser o prompt, nao funcionalidade nova.
+
+Ficou bloqueado por meses por falta de saldo na API. Esse bloqueio caiu em
+25/08/2026 com a migracao para o Gemini. Nao ha mais desculpa tecnica.
+
+Destrava: um piloto de um mes real, com um squad e dois clientes.
+Responsavel: Erick.
+
+
+[2] Pesquisa de palavras-chave e manual
+----------------------------------------
+O provedor esta em modo "mock" (KEYWORDS_PROVIDER=mock). A ferramenta nao
+busca demanda real de busca — alguem cola as palavras a mao.
+
+E a unica etapa manual que sobrou no fluxo, o que destoa do resto.
+
+Solucao levantada: DataForSEO. Labs API a US$ 0,025 por 1.000 termos. Para 25
+clientes da cerca de US$ 1/mes. Exige deposito inicial de US$ 50, que e
+credito de uso e nao mensalidade.
+
+Destrava: criar a conta e fazer o deposito.
+
+
+[3] Plano pago do Gemini nao contratado
+----------------------------------------
+O plano gratuito nao cobre a operacao. Confirmado em producao: o
+gemini-3.6-flash permite 20 chamadas por DIA e um mes de um cliente consome 24.
+
+Trocar de modelo so muda onde fica o teto, nao remove o teto.
+
+Custo estimado: US$ 8 a 12/mes para 25 clientes no gemini-3.5-flash.
+
+Destrava: ativar o faturamento no Google AI Studio.
+
+
+DECISOES DE NEGOCIO PENDENTES
+=============================
+
+
+[4] Plano gratuito do Gemini usa o conteudo para treinar?
+-----------------------------------------------------------
+Briefings e documentos de cliente passam pelos prompts. Vale confirmar nos
+termos do Google se o conteudo enviado no plano gratuito pode ser usado para
+treinar os modelos deles. No plano pago normalmente nao ha esse uso.
+
+E decisao de negocio, nao tecnica.
+
+
+[5] Vercel Hobby veda uso comercial
+------------------------------------
+O plano gratuito da Vercel e para uso pessoal/nao-comercial. O projeto atende
+clientes pagantes, o que configura uso comercial. Risco de a aplicacao ser
+derrubada.
+
+Opcoes: Vercel Pro (US$ 20/mes, zero alteracao de codigo) ou Cloudflare
+Containers (US$ 5 a 8/mes, exige containerizar o projeto).
+
+Decisao adiada em 20/08/2026. Continua em aberto.
+
+
+[6] Numeros que faltam para fechar a analise financeira
+---------------------------------------------------------
+  - Fatura atual do Reportei para 25 clientes. O valor publico conhecido
+    (R$ 74,90) cobre apenas 5. Sem isso, a economia de caixa esta subestimada.
+  - Rateio das contas de Supabase e Cloudflare com os projetos das outras
+    areas. Define quanto do custo de tabela e realmente novo.
+
+
+RISCOS ESTRUTURAIS
+==================
+
+
+[7] Uma pessoa so sustenta o projeto
+--------------------------------------
+Hoje o desenvolvimento acontece via Claude Code conduzido pelo Erick, sem
+desenvolvedor dedicado. Funciona no MVP, mas para uma ferramenta que a
+operacao passa a depender diariamente, e o principal risco do projeto — maior
+que qualquer custo da analise.
+
+Definir quem responde por manutencao antes do rollout.
+
+
+OPERACIONAIS
+============
+
+
+[8] Reconectar as contas de Meta dos clientes
+-----------------------------------------------
+A permissao pages_read_user_content foi adicionada ao escopo do OAuth, mas
+tokens antigos nao a recebem sozinhos. Sem ela, a secao de dados da Pagina do
+Facebook no dashboard fica vazia.
+
+Solucao: reconectar cada cliente uma vez, na aba de Contexto.
+Contas conectadas hoje: 3.
+
+
+[9] Senhas temporarias dos 5 usuarios novos
+---------------------------------------------
+Criados na importacao da planilha em 20/08/2026 com senha aleatoria. Precisam
+receber a senha e trocar no primeiro acesso.
+
+  Kamila     kamila.freitas@cupola.com.br         Redator
+  Ana        ana.souza@cupola.com.br              Redator
+  Joao       joao.guilherme@cupola.com.br         Estagiario
+  Dieniffer  dieniffer.dallazoanna@cupola.com.br  Redator
+  Tauan      tauan.silva@cupola.com.br            Redator
+
+As senhas NAO ficam registradas aqui de proposito: este arquivo vai para o
+Git e senha em texto puro no historico do repositorio nao sai mais de la.
+Se alguma tiver se perdido, um admin redefine em Usuarios — nao ha motivo
+para recuperar a original.
+
+
+SUGESTOES NAO IMPLEMENTADAS
+===========================
+Levantadas e nao aprovadas. Registradas para nao se perderem.
+
+
+[10] Campo de "data prevista" por post
+----------------------------------------
+Um campo de data em cada post do fluxo, mais uma visao de calendario do mes.
+
+Resolve a dor real que o espelhamento e a publicacao tentaram resolver e nao
+resolveram: ver ate quando cada cliente tem conteudo no ar. A equipe continua
+agendando no Business Suite e registra a data ali. A ferramenta conhece o
+calendario porque o redator informou, nao porque leu do Meta.
+
+Mata a duplicacao no ClickUp com zero risco de post nao publicado, e faz o
+alerta de cobertura funcionar com dado confiavel.
+
+
+[11] Link de aprovacao para o cliente
+---------------------------------------
+Link so-leitura por cliente/mes onde o cliente ve os posts planejados e aprova
+ou comenta. Hoje isso vira ida e volta de print no WhatsApp — trabalho que nao
+aparece nas 4h medidas, mas existe.
+
+Risco baixo: so leitura e comentario, nada vai ao ar sozinho.
+Esforco: o maior da lista de sugestoes.
+
+
+[12] Verificacao de termos proibidos
+--------------------------------------
+Checagem mecanica (sem IA, sem custo, sem alucinacao) que destaca termos do
+glossario proibido do cliente dentro do texto gerado, antes da aprovacao.
+
+Depende de estruturar os termos proibidos por cliente — hoje eles vivem
+dentro dos documentos de contexto, em texto livre.
+
+
+[13] Carrossel no Facebook publica so a primeira imagem
+---------------------------------------------------------
+Limitacao conhecida de publishToFacebook. So importa se a publicacao pela
+ferramenta voltar ao escopo (ver decisoes.txt, 26/08/2026).
