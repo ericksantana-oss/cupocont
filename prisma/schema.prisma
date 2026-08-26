@@ -50,6 +50,7 @@ model User {
   activityLogs    ActivityLog[]
   marketingEmails MarketingEmail[] @relation("EmailCreator")
   scheduledPosts  ScheduledPost[]  @relation("PostScheduler")
+  clientRules     ClientRule[]     @relation("RuleAuthor")
 
   @@map("users")
 }
@@ -117,8 +118,26 @@ model Client {
   scheduledPosts ScheduledPost[]
   storyInsights  StoryInsight[]
   metricSnapshots MetricSnapshot[]
+  rules           ClientRule[]
 
   @@map("clients")
+}
+
+// Correções que o redator quis tornar permanentes. Nascem das "instruções extras"
+// de uma regeneração: sem isto a correção morre naquela geração e a IA repete o
+// mesmo erro no mês seguinte, obrigando alguém a corrigir de novo.
+model ClientRule {
+  id          String   @id @default(cuid())
+  clientId    String
+  rule        String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("RuleAuthor", fields: [createdById], references: [id])
+
+  @@index([clientId])
+  @@map("client_rules")
 }
 
 // Retrato mensal das métricas de cada cliente, gravado pelo cron. O dashboard

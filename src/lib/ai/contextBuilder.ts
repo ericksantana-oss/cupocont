@@ -1,18 +1,25 @@
 import type { Briefing, Client } from "@prisma/client";
 import type { Keyword } from "@/lib/keywords/provider";
 import { retrieveRelevantChunks } from "@/lib/rag/retrieve";
+import { formatClientRules } from "@/lib/clientRules";
 
 // Monta o bloco de "contexto do cliente" (RAG) que entra no prompt da IA.
 // A query de busca semântica usa o briefing para trazer os trechos da base
 // de conhecimento mais relevantes para o mês.
 export async function buildClientKnowledgeContext(clientId: string, searchQuery: string): Promise<string> {
-  const chunks = await retrieveRelevantChunks(clientId, searchQuery, 8);
+  // As regras fixas entram aqui, e não em cada chamada, para que todo prompt do
+  // cliente as receba sem depender de alguém lembrar de somá-las.
+  const [chunks, regras] = await Promise.all([
+    retrieveRelevantChunks(clientId, searchQuery, 8),
+    formatClientRules(clientId),
+  ]);
 
-  if (chunks.length === 0) {
-    return "Nenhum documento de contexto foi cadastrado para este cliente ainda.";
-  }
+  const base =
+    chunks.length === 0
+      ? "Nenhum documento de contexto foi cadastrado para este cliente ainda."
+      : chunks.map((chunk, i) => `[Trecho ${i + 1}]\n${chunk.content}`).join("\n\n");
 
-  return chunks.map((chunk, i) => `[Trecho ${i + 1}]\n${chunk.content}`).join("\n\n");
+  return [base, regras].filter(Boolean).join("\n\n");
 }
 
 export function formatKeywordsList(keywords: Keyword[]): string {

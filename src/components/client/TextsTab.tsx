@@ -147,6 +147,13 @@ function ThemeTextCard({
           </div>
         </div>
         <Input name="instructions" placeholder="Instruções extras para a IA (ângulo, CTA, o que evitar...)" />
+        <label className="flex items-start gap-2 text-xs text-tinta-2">
+          <input type="checkbox" name="saveAsRule" className="mt-0.5" />
+          <span>
+            Guardar como regra fixa deste cliente. Marque quando for uma correção que vale sempre — ela passa a
+            valer em toda geração futura, em vez de você repetir a instrução todo mês.
+          </span>
+        </label>
         <BotaoGerar label={latest ? "Gerar nova versão" : "Gerar peça"} dica="Costuma levar de 15 a 40 segundos." />
       </form>
 

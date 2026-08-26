@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
 import { ContextTab } from "@/components/client/ContextTab";
+import { ClientRulesCard } from "@/components/client/ClientRulesCard";
 
 export default async function ClientContextPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -29,6 +30,10 @@ export default async function ClientContextPage({ params }: { params: Promise<{ 
 
       <div className="mt-8">
         <ContextTab clientId={clientId} />
+      </div>
+
+      <div className="mt-6">
+        <ClientRulesCard clientId={clientId} />
       </div>
     </div>
   );

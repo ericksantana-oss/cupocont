@@ -334,6 +334,14 @@ export async function generateTextAction(clientId: string, themeId: string, form
   const regenerationInstructions = String(formData.get("instructions") ?? "").trim() || undefined;
   const pieceFormat: PieceFormat = formData.get("pieceFormat") === "CARROSSEL" ? "CARROSSEL" : "CARD";
 
+  // O redator marcou que essa correção vale sempre para este cliente. Grava antes
+  // de gerar, para a própria geração já sair com a regra valendo.
+  if (regenerationInstructions && formData.get("saveAsRule") === "on") {
+    await db.clientRule.create({
+      data: { clientId, rule: regenerationInstructions, createdById: user.id },
+    });
+  }
+
   const lastVersion = await db.generatedText.findFirst({
     where: { themeId },
     orderBy: { version: "desc" },
@@ -557,5 +565,22 @@ export async function publishNowAction(clientId: string, textId: string, formDat
     }
   }
 
+  revalidateClient(clientId);
+}
+
+// ---------- Regras fixas do cliente ----------
+
+export async function removeClientRuleAction(clientId: string, ruleId: string) {
+  await requireClientAccess(clientId);
+  await db.clientRule.deleteMany({ where: { id: ruleId, clientId } });
+  revalidateClient(clientId);
+}
+
+export async function addClientRuleAction(clientId: string, formData: FormData) {
+  const user = await requireClientAccess(clientId);
+  const rule = String(formData.get("rule") ?? "").trim();
+  if (!rule) throw new Error("A regra não pode ficar vazia.");
+
+  await db.clientRule.create({ data: { clientId, rule, createdById: user.id } });
   revalidateClient(clientId);
 }
