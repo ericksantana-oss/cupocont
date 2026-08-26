@@ -584,3 +584,33 @@ export async function addClientRuleAction(clientId: string, formData: FormData) 
   await db.clientRule.create({ data: { clientId, rule, createdById: user.id } });
   revalidateClient(clientId);
 }
+
+// Copia o briefing do mês anterior mais recente como ponto de partida. Não sobrescreve
+// briefing existente: a tela só oferece isso quando o mês está vazio.
+export async function copyPreviousBriefingAction(clientId: string, period: string) {
+  const user = await requireClientAccess(clientId);
+
+  const jaExiste = await db.briefing.findUnique({ where: { clientId_period: { clientId, period } } });
+  if (jaExiste) throw new Error("Este mês já tem briefing. Edite o que existe em vez de copiar por cima.");
+
+  const anterior = await db.briefing.findFirst({
+    where: { clientId, period: { lt: period } },
+    orderBy: { period: "desc" },
+  });
+  if (!anterior) throw new Error("Não há briefing de mês anterior para copiar.");
+
+  await db.briefing.create({
+    data: {
+      clientId,
+      period,
+      goals: anterior.goals,
+      keyDates: anterior.keyDates,
+      // Temas sugeridos NÃO são copiados: são a pauta daquele mês específico e
+      // repetir seria pedir à IA que gerasse de novo o que já foi publicado.
+      createdById: user.id,
+    },
+  });
+
+  await logActivity({ clientId, userId: user.id, action: "BRIEFING_SAVED", period, detail: `copiado de ${anterior.period}` });
+  revalidateClient(clientId);
+}
