@@ -227,16 +227,21 @@ export async function getInstagramPosts(
 
 export type MetricasFacebook = {
   seguidores: number | null;
-  /** false quando o token não tem read_insights: a API devolve lista vazia em vez de erro. */
-  temPermissaoInsights: boolean;
+  /**
+   * false quando nenhuma métrica de Página respondeu. Não é falta de permissão: o
+   * Meta descontinuou a maior parte das métricas de Página da API (as removidas
+   * respondem "not a valid insights metric", as sobreviventes vêm vazias).
+   */
+  temMetricasDePagina: boolean;
   visualizacoesPagina: number | null;
   engajamentoPosts: number | null;
   novosSeguidores: number | null;
 };
 
-// O Meta responde 200 com "data": [] quando falta read_insights, em vez de negar.
+// As métricas de Página do Facebook foram em grande parte removidas da API pelo
+// Meta. As que sobraram respondem 200 com "data": [] — sem erro, sem aviso.
 // Sem distinguir isso de "não houve atividade", a tela mentiria: mostraria zero
-// como se fosse resultado medido.
+// como se fosse resultado medido. Ver docs/aprendizados.txt.
 export async function getFacebookMetrics(
   pageId: string,
   token: string,
@@ -286,7 +291,7 @@ export async function getFacebookMetrics(
 
   return {
     seguidores: perfil.followers_count ?? perfil.fan_count ?? null,
-    temPermissaoInsights: visualizacoes != null || engajamento != null || novos != null,
+    temMetricasDePagina: visualizacoes != null || engajamento != null || novos != null,
     visualizacoesPagina: visualizacoes,
     engajamentoPosts: engajamento,
     novosSeguidores: novos,

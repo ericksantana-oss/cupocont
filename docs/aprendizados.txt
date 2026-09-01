@@ -89,17 +89,33 @@ se usa a soma da serie diaria. Por isso o rotulo deles diz "Soma do alcance
 unico diario" — e literal.
 
 
-read_insights: o Meta responde VAZIO em vez de negar
-------------------------------------------------------
-Sem a permissao read_insights, /{page-id}/insights devolve 200 com "data": []
-para toda metrica. Nao da erro, nao avisa. Resultado: toda metrica de Pagina
-do Facebook parecia "sem atividade" quando era falta de permissao.
+read_insights FOI DESCONTINUADO — nao adicionar ao escopo
+----------------------------------------------------------
+Diagnostico errado cometido em 26/08/2026 e corrigido em 01/09/2026:
 
-Como diagnosticar: /debug_token mostra os escopos concedidos ao token.
+Ao ver /{page-id}/insights devolver 200 com "data": [] em toda metrica,
+concluiu-se que faltava a permissao read_insights e ela foi adicionada ao
+escopo do OAuth. Resultado: o Meta passou a BLOQUEAR o login com
 
-Consequencia de projeto: quando a ausencia de permissao e indistinguivel de
-ausencia de dado, a tela precisa dizer qual dos dois e. Zero apresentado como
-medicao e mentira.
+  Invalid Scopes: read_insights
+
+o que impediu conectar qualquer conta. O escopo foi descontinuado pelo Meta e
+nao existe mais; nao ha o que habilitar no painel.
+
+A causa real do vazio e outra: o Meta REMOVEU a maior parte das metricas de
+Pagina da API (deprecacao concluida em 15/06/2026). As removidas respondem
+"not a valid insights metric"; as sobreviventes respondem vazio. Insights de
+Pagina hoje dependem de pages_read_engagement, que o token ja tinha.
+
+Duas licoes:
+  1. Escopo ausente no /debug_token nao prova que o escopo exista. Antes de
+     adicionar permissao, confirmar que ela ainda e valida.
+  2. Mexer no escopo do OAuth tem custo assimetrico: um escopo invalido nao
+     degrada uma funcionalidade, ele derruba a conexao inteira.
+
+Consequencia de projeto que segue valida: quando ausencia de dado e
+indistinguivel de ausencia de permissao ou de metrica removida, a tela precisa
+dizer qual dos casos e. Zero apresentado como medicao e mentira.
 
 
 Metricas de Pagina e de post do Facebook foram removidas da API

@@ -80,7 +80,7 @@ export type SnapshotGuardado = {
   capturedAt: Date;
   instagram: MetricasInstagram;
   posts: PostInstagram[];
-  facebook: { seguidores: number | null; visualizacoesPagina: number | null; engajamentoPosts: number | null; novosSeguidores: number | null; temPermissaoInsights: boolean } | null;
+  facebook: { seguidores: number | null; visualizacoesPagina: number | null; engajamentoPosts: number | null; novosSeguidores: number | null; temMetricasDePagina: boolean } | null;
   facebookPosts: PagePost[];
 };
 
@@ -116,7 +116,7 @@ export async function lerSnapshot(clientId: string, period: string): Promise<Sna
           visualizacoesPagina: s.fbPageViews,
           engajamentoPosts: s.fbEngagement,
           novosSeguidores: s.fbNewFollowers,
-          temPermissaoInsights: temFb,
+          temMetricasDePagina: temFb,
         }
       : null,
     facebookPosts: (s.fbPosts as unknown as PagePost[] | null) ?? [],

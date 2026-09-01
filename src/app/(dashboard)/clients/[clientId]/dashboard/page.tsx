@@ -399,18 +399,14 @@ export default async function ClientDashboardPage({
         <>
           <Secao icone={<Facebook className="size-4" strokeWidth={1.5} />} titulo="Facebook" sub={data.pageName ?? ""} />
 
-          {fb && !fb.temPermissaoInsights && (
+          {fb && !fb.temMetricasDePagina && (
             <div className="mt-3 flex items-start gap-2 rounded-controle bg-alerta/10 p-4 text-sm">
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-alerta" strokeWidth={1.5} />
               <span>
-                <strong>As métricas da Página estão indisponíveis por falta de permissão.</strong> O Meta exige a
-                permissão <code className="text-xs">read_insights</code>, que não existia quando esta conta foi
-                conectada — e ele responde com lista vazia em vez de recusar, o que faz parecer ausência de
-                atividade. Reconecte o Facebook deste cliente na{" "}
-                <Link href={`/clients/${clientId}/contexto`} className="text-mata underline">
-                  aba de Contexto
-                </Link>{" "}
-                para liberar. Os números dos posts abaixo não dependem dela.
+                <strong>O Meta removeu as métricas de Página da API.</strong> Alcance, visualizações e engajamento
+                da Página deixaram de ser oferecidos: parte responde &ldquo;métrica inválida&rdquo; e o resto vem
+                vazio, sem erro. Não é falta de permissão nem de atividade, e não há como contornar. O que segue
+                disponível é o número de seguidores e os dados por postagem abaixo.
               </span>
             </div>
           )}

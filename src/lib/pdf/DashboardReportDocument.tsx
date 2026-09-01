@@ -302,13 +302,12 @@ export function DashboardReportDocument({ data }: { data: DashboardReportData })
           <>
             <Text style={s.rede}>FACEBOOK — {data.pageName}</Text>
 
-            {fb && !fb.temPermissaoInsights && (
+            {fb && !fb.temMetricasDePagina && (
               <View style={s.aviso}>
                 <Text>
-                  As métricas da Página estão indisponíveis por falta da permissão read_insights, que não existia
-                  quando esta conta foi conectada. O Meta responde com lista vazia em vez de recusar, o que faz
-                  parecer ausência de atividade. Reconecte o Facebook do cliente para liberar. Os números por
-                  postagem abaixo não dependem dessa permissão.
+                  O Meta removeu as métricas de Página da API: alcance, visualizações e engajamento da Página
+                  deixaram de ser oferecidos. Não é falta de permissão nem de atividade, e não há como contornar.
+                  Seguem disponíveis o número de seguidores e os dados por postagem.
                 </Text>
               </View>
             )}
