@@ -1,6 +1,6 @@
 CUPOCONT — PENDENCIAS
 =====================
-Atualizado em 26/08/2026 (segunda revisao do dia).
+Atualizado em 01/09/2026.
 Quando uma pendencia for resolvida, mover para decisoes.txt com o desfecho.
 
 
@@ -115,6 +115,30 @@ Facebook no dashboard fica vazia.
 
 Solucao: reconectar cada cliente uma vez, na aba de Contexto.
 Contas conectadas hoje: 3.
+
+
+[9] Reconectar contas para liberar read_insights — E CONGELAR O HISTORICO
+--------------------------------------------------------------------------
+Duas coisas com prazo, as duas dependem de acao no painel/na ferramenta:
+
+a) A permissao read_insights entrou no escopo do OAuth em 01/09/2026. Sem
+   reconectar, TODA metrica de Pagina do Facebook fica vazia. Se o login
+   acusar "Invalid Scopes", a permissao precisa ser habilitada antes no
+   painel do app no Meta (Login do Facebook para Empresas > permissoes).
+
+b) Congelar os meses passados, no botao "Congelar ultimos 6 meses" do
+   relatorio. A API do Meta descarta insights antigos: meses acessiveis hoje
+   podem nao estar acessiveis no mes que vem. O que nao for capturado agora
+   nao volta — mesma logica dos Stories.
+
+
+[10] Relatorio e PDF nunca foram vistos renderizados
+------------------------------------------------------
+A camada de dados foi conferida a fundo contra a conta real (julho e agosto
+batem exatamente com o Reportei), mas a TELA e o PDF nunca foram abertos
+depois da reestruturacao. Typecheck e build passam, o que nao garante layout.
+
+Vale abrir o relatorio de um cliente e o PDF uma vez e olhar.
 
 
 [9] Senhas temporarias dos 5 usuarios novos

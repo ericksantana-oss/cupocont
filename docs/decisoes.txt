@@ -4,6 +4,46 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+01/09/2026 — Meses fechados vem do historico, nao da API
+--------------------------------------------------------
+O relatorio escolhe a fonte sozinho: mes de calendario fechado e ja congelado
+vem do banco; mes corrente e intervalo personalizado vao ao vivo. A tela diz
+qual das duas esta usando, com a data da captura.
+
+Motivo: a API do Meta descarta insights antigos. Sem congelar, um mes fica
+ilegivel para sempre depois de certo tempo.
+
+O snapshot guarda o relatorio INTEIRO — metricas de conta, serie diaria,
+tabela de posts e o lado do Facebook — nao so alguns numeros.
+
+O cron reescreve o mes corrente a cada execucao (ainda esta somando) e captura
+o mes anterior ate marca-lo como fechado. Depois disso nao se mexe mais.
+
+Existe botao para congelar os ultimos 6 meses sob demanda: meses acessiveis
+hoje podem nao estar no mes que vem.
+
+Verificado: julho congela em 215.455 e agosto em 71.136, os dois exatos contra
+o relatorio do Reportei.
+
+
+01/09/2026 — Relatorio separado por rede, e a correcao do bug de 30 dias
+------------------------------------------------------------------------
+O relatorio parecia superficial por um motivo concreto: a API do Meta limita a
+janela a 30 dias, um mes de 31 estoura, e o codigo engolia o erro devolvendo
+zero. Alcance e visitas ao perfil vinham 0 em todo mes de 31 dias.
+
+Alem disso o alcance usava a definicao errada — ver aprendizados.txt.
+
+Agora: consultas divididas em pedacos de 30 dias, secoes separadas e rotuladas
+(Instagram, Stories, Facebook), quatro graficos, e as metricas por post que a
+API realmente tem (views, salvos, compartilhamentos, comecaram a seguir,
+visitas ao perfil).
+
+read_insights entrou no escopo do OAuth. Enquanto o cliente nao reconectar, a
+secao do Facebook diz que falta permissao em vez de mostrar zero como se fosse
+medicao.
+
+
 26/08/2026 — Busca semantica no que ja foi produzido
 -----------------------------------------------------
 Tela /busca procura por SENTIDO nos temas ja produzidos: "financiamento" acha

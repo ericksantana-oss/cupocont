@@ -89,7 +89,8 @@ O que ela faz, em ordem:
   2. Libera posts presos em "PUBLISHING" ha mais de 10 minutos
   3. Atualiza o feed de noticias do mercado imobiliario
   4. Captura os Stories ativos das contas conectadas
-  5. Grava o retrato mensal de metricas de cada cliente (2 chamadas por conta)
+  5. Grava o retrato mensal completo de cada cliente: reescreve o mes corrente
+     e congela o mes anterior (metricas, serie diaria, posts e Facebook)
 
 A autenticacao usa o header Authorization: Bearer <CRON_SECRET>. A Vercel
 injeta sozinha quando a variavel existe.
@@ -111,6 +112,16 @@ aquele cliente.
 
 Reconectar e necessario quando novas permissoes entram no escopo do OAuth:
 token antigo nao ganha permissao nova sozinho.
+
+
+HISTORICO DE METRICAS
+=====================
+Mes de calendario fechado e ja congelado e lido do banco; mes corrente e
+intervalo personalizado vao ao vivo na API. A tela informa qual fonte usou.
+
+Para congelar meses passados sob demanda: botao "Congelar ultimos 6 meses" no
+relatorio do cliente. Fazer isso o quanto antes — o Meta descarta insights
+antigos.
 
 
 VERIFICACOES ANTES DE PUBLICAR ALTERACAO

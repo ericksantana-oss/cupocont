@@ -60,6 +60,94 @@ config — usar sempre. Hoje: 120s.
 API DO META
 ===========
 
+A janela de insights e limitada a 30 DIAS
+------------------------------------------
+Consulta com since/until de mais de 2.592.000 segundos volta erro (#100):
+"There cannot be more than 30 days between since and until".
+
+Um mes de 31 dias ESTOURA esse limite. E o codigo antigo engolia o erro num
+try/catch e devolvia zero — o relatorio mostrou alcance 0 em todo mes de 31
+dias por semanas, sem ninguem perceber. O snapshot gravado herdou o mesmo zero.
+
+Solucao: dividir a janela em pedacos de no maximo 30 dias e recombinar. Na
+serie diaria, deduplicar a data de fronteira entre pedacos.
+
+Licao mais ampla: try/catch que devolve valor neutro (0, [], null) esconde
+falha de integracao. Se o dado importa, o erro tem que aparecer em algum lugar.
+
+
+"Soma do alcance unico diario" nao e o mesmo que alcance do periodo
+--------------------------------------------------------------------
+Sao dois numeros diferentes e a diferenca e grande:
+
+  serie diaria somada    agosto/2026: 71.136   <- e este que o Reportei mostra
+  total_value do periodo agosto/2026: 39.687   <- deduplicado, quem apareceu
+                                                  em dois dias conta uma vez
+
+Conferido: os dois meses batem exatamente com o relatorio do Reportei quando
+se usa a soma da serie diaria. Por isso o rotulo deles diz "Soma do alcance
+unico diario" — e literal.
+
+
+read_insights: o Meta responde VAZIO em vez de negar
+------------------------------------------------------
+Sem a permissao read_insights, /{page-id}/insights devolve 200 com "data": []
+para toda metrica. Nao da erro, nao avisa. Resultado: toda metrica de Pagina
+do Facebook parecia "sem atividade" quando era falta de permissao.
+
+Como diagnosticar: /debug_token mostra os escopos concedidos ao token.
+
+Consequencia de projeto: quando a ausencia de permissao e indistinguivel de
+ausencia de dado, a tela precisa dizer qual dos dois e. Zero apresentado como
+medicao e mentira.
+
+
+Metricas de Pagina e de post do Facebook foram removidas da API
+----------------------------------------------------------------
+Testado em 26/08/2026, respondem "The value must be a valid insights metric":
+
+  page_impressions, page_impressions_unique, page_impressions_organic_unique
+  page_fan_adds, page_fan_adds_unique, page_fans, page_fans_country
+  page_engaged_users, page_posts_impressions*
+  post_impressions, post_impressions_organic, post_impressions_paid
+  post_engaged_users, post_negative_feedback
+
+Ainda aceitas (com read_insights): page_views_total, page_post_engagements,
+page_daily_follows_unique, page_video_views, post_reactions_by_type_total,
+post_clicks.
+
+Efeito pratico: nao existe mais alcance nem impressao POR POST no Facebook.
+A tabela de posts fica com reacoes, comentarios e compartilhamentos.
+
+
+"Visualizacoes Organicas" do Reportei nao e reproduzivel
+---------------------------------------------------------
+Reportei mostra 37.538 em agosto. Testados sem bater:
+
+  views da conta (total_value)   123.293
+  soma das views por post          5.060
+  soma do alcance por post         2.613
+  soma da serie de alcance        71.136
+
+A proporcao contra a soma de alcance e consistente nos dois meses (~50%), o
+que aponta para eles filtrarem apenas organico. A API nao oferece separacao
+organico/pago no nivel da conta. Nossa metrica e o total e esta rotulada como
+tal — nao vale forcar um numero igual.
+
+
+Metricas do Instagram que FUNCIONAM (26/08/2026)
+--------------------------------------------------
+  conta:  followers_count, media_count, reach, views, profile_views,
+          accounts_engaged, total_interactions, website_clicks
+  serie:  reach (diaria). "views" NAO tem serie diaria, so total.
+  post:   reach, views, likes, comments, saved, shares, total_interactions,
+          follows (comecaram a seguir), profile_visits
+
+  impressions MORREU na v22 — "views" e a substituta.
+  follower_count so aceita os ultimos 30 dias EXCLUINDO hoje, entao grafico de
+  crescimento de seguidores para mes historico e impossivel.
+
+
 O Business Suite nao expoe sua fila de agendamento
 ----------------------------------------------------
 Nenhum endpoint devolve o que foi agendado pelo compositor unificado do
