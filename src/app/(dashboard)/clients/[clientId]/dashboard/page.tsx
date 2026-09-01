@@ -11,6 +11,9 @@ import {
   PorTipoBarChart,
 } from "@/components/client/DashboardCharts";
 import { defaultRange, pctChange, MEDIA_TYPE_LABEL, loadDashboardReportData } from "@/lib/reportData";
+import { backfillSnapshotsAction } from "../actions";
+import { Button } from "@/components/ui/button";
+import { Database, History } from "lucide-react";
 import type { PostInstagram } from "@/lib/meta/insights";
 
 type SortKey = "date" | "reach" | "views" | "likes" | "comments" | "saved" | "shares" | "rate";
@@ -134,6 +137,34 @@ export default async function ClientDashboardPage({
           <Download className="size-4" strokeWidth={1.5} />
           Baixar PDF
         </a>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-controle border border-linha bg-linha-2 p-3 text-sm">
+        <span className="flex items-center gap-2">
+          {data.origem === "historico" ? (
+            <>
+              <Database className="size-4 shrink-0 text-mata" strokeWidth={1.5} />
+              <span>
+                Números lidos do <strong>histórico gravado</strong>
+                {data.capturadoEm ? ` em ${data.capturadoEm.toLocaleDateString("pt-BR")}` : ""}. Meses fechados
+                ficam guardados: o Meta descarta métricas antigas, e essa é a cópia que sobra.
+              </span>
+            </>
+          ) : (
+            <>
+              <History className="size-4 shrink-0 text-tinta-3" strokeWidth={1.5} />
+              <span>
+                Números consultados <strong>ao vivo</strong> no Meta. Meses fechados passam a vir do histórico
+                depois de capturados.
+              </span>
+            </>
+          )}
+        </span>
+        <form action={backfillSnapshotsAction.bind(null, clientId, 6)}>
+          <Button type="submit" variant="outline" size="sm">
+            Congelar últimos 6 meses
+          </Button>
+        </form>
       </div>
 
       {data.insights.length > 0 && (

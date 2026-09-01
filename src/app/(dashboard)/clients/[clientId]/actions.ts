@@ -15,6 +15,8 @@ import { generateThemePiece } from "@/lib/ai/prompts/generateText";
 import { normalizeSlideRoles, parseSlides, type PieceFormat, type Slide } from "@/lib/contentPiece";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
 import { indexarTemas } from "@/lib/themeSimilarity";
+import { capturarSnapshot } from "@/lib/metricSnapshot";
+import { currentPeriod, parsePeriod, formatPeriod } from "@/lib/periodo";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
 import {
   uploadClientFile,
@@ -612,5 +614,40 @@ export async function copyPreviousBriefingAction(clientId: string, period: strin
   });
 
   await logActivity({ clientId, userId: user.id, action: "BRIEFING_SAVED", period, detail: `copiado de ${anterior.period}` });
+  revalidateClient(clientId);
+}
+
+// ---------- Histórico de métricas ----------
+
+// Congela os meses fechados que ainda não têm histórico. Vale rodar o quanto antes:
+// a API do Meta descarta insights antigos, e o que não for capturado agora não volta.
+export async function backfillSnapshotsAction(clientId: string, meses = 6): Promise<void> {
+  const user = await requireClientAccess(clientId);
+
+  const atual = parsePeriod(currentPeriod());
+  const capturados: string[] = [];
+
+  for (let i = 1; i <= meses; i++) {
+    const d = new Date(atual.year, atual.month - 1 - i, 1);
+    const period = formatPeriod(d.getMonth() + 1, d.getFullYear());
+
+    const existente = await db.metricSnapshot.findUnique({
+      where: { clientId_period: { clientId, period } },
+      select: { closed: true },
+    });
+    if (existente?.closed) continue;
+
+    if (await capturarSnapshot(clientId, period)) capturados.push(period);
+  }
+
+  // Registra o que foi congelado: sem isso o botao parece nao ter feito nada
+  // quando todos os meses ja tinham historico.
+  await logActivity({
+    clientId,
+    userId: user.id,
+    action: "KEYWORDS_RESEARCHED",
+    detail: capturados.length > 0 ? `Histórico congelado: ${capturados.join(", ")}` : "Histórico já estava completo",
+  });
+
   revalidateClient(clientId);
 }

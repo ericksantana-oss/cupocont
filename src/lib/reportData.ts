@@ -9,6 +9,8 @@ import {
   type PostInstagram,
 } from "@/lib/meta/insights";
 import { getPagePostsInPeriod, type PagePost } from "@/lib/meta/graph";
+import { lerSnapshot } from "@/lib/metricSnapshot";
+import { currentPeriod, formatPeriod } from "@/lib/periodo";
 import type { StoryInsight } from "@prisma/client";
 
 export const MEDIA_TYPE_LABEL: Record<string, string> = {
@@ -80,7 +82,25 @@ export type DashboardReportData = {
   facebookAnterior: MetricasFacebook | null;
   facebookPosts: PagePost[];
   insights: string[];
+  /** De onde vieram os números: consulta ao vivo ou histórico gravado. */
+  origem: "ao-vivo" | "historico";
+  capturadoEm: Date | null;
 };
+
+// Um intervalo é "um mês fechado" quando cobre exatamente um mês do calendário que
+// já terminou. Só nesse caso vale ler do histórico: mês corrente ainda muda, e
+// intervalo personalizado não tem snapshot correspondente.
+function mesFechadoDoIntervalo(from: string, to: string): string | null {
+  const [ay, am, ad] = from.split("-").map(Number);
+  const [by, bm, bd] = to.split("-").map(Number);
+
+  if (ay !== by || am !== bm || ad !== 1) return null;
+  const ultimoDia = new Date(by, bm, 0).getDate();
+  if (bd !== ultimoDia) return null;
+
+  const period = formatPeriod(am, ay);
+  return period < currentPeriod() ? period : null;
+}
 
 // Reúne tudo do relatório de resultados, separado por rede. Usado pela tela e pelo
 // PDF, para os dois mostrarem exatamente os mesmos números.
@@ -97,6 +117,39 @@ export async function loadDashboardReportData(
 
   const { since, until, prevSince, prevUntil, sinceDate, untilDate } = dateRangeUnix(from, to);
   const rangeLabel = `${sinceDate.toLocaleDateString("pt-BR")} a ${untilDate.toLocaleDateString("pt-BR")}`;
+
+  // Mês fechado com histórico gravado vem do banco: é mais rápido e, principalmente,
+  // continua existindo depois que o Meta descartar aquele período.
+  const periodoFechado = mesFechadoDoIntervalo(from, to);
+  const guardado = periodoFechado ? await lerSnapshot(clientId, periodoFechado) : null;
+
+  if (guardado?.closed) {
+    const anterior = periodoFechado ? await lerSnapshot(clientId, mesAnteriorAoPeriodo(periodoFechado)) : null;
+    const stories = await db.storyInsight.findMany({
+      where: { clientId, timestamp: { gte: sinceDate, lte: untilDate } },
+      orderBy: { timestamp: "desc" },
+    });
+
+    return {
+      client: { id: client.id, name: client.name },
+      igUsername: account.igUsername,
+      pageId: account.pageId,
+      pageName: account.pageName,
+      rangeLabel,
+      from,
+      to,
+      instagram: guardado.instagram,
+      instagramAnterior: anterior?.instagram ?? vazioInstagram(),
+      posts: guardado.posts,
+      stories,
+      facebook: guardado.facebook,
+      facebookAnterior: anterior?.facebook ?? null,
+      facebookPosts: guardado.facebookPosts,
+      insights: [],
+      origem: "historico",
+      capturadoEm: guardado.capturedAt,
+    };
+  }
 
   const [instagram, instagramAnterior, posts, stories] = await Promise.all([
     getInstagramMetrics(account.igUserId, account.pageAccessToken, { since, until }),
@@ -154,5 +207,29 @@ export async function loadDashboardReportData(
     facebookAnterior,
     facebookPosts,
     insights,
+    origem: "ao-vivo",
+    capturadoEm: null,
+  };
+}
+
+function mesAnteriorAoPeriodo(period: string): string {
+  const [ano, mes] = period.split("-").map(Number);
+  const d = new Date(ano, mes - 2, 1);
+  return formatPeriod(d.getMonth() + 1, d.getFullYear());
+}
+
+function vazioInstagram() {
+  return {
+    followers: null,
+    mediaCount: null,
+    alcanceSomaDiaria: null,
+    alcanceUnicoPeriodo: null,
+    visualizacoes: null,
+    visitasPerfil: null,
+    contasEngajadas: null,
+    interacoesTotais: null,
+    cliquesNoSite: null,
+    serieAlcance: [],
+    serieVisualizacoes: [],
   };
 }

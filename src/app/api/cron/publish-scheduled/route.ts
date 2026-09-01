@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { publishToInstagram, publishToFacebook, translateMetaError } from "@/lib/meta/publish";
-import { getActiveStoriesInsights, getAccountTotals, getProfileMetrics } from "@/lib/meta/graph";
+import { getActiveStoriesInsights } from "@/lib/meta/graph";
 import { getPostMediaSignedUrl } from "@/lib/storage";
 import { fetchAllMarketNews } from "@/lib/news/marketNews";
-import { currentPeriod, parsePeriod } from "@/lib/periodo";
+import { currentPeriod } from "@/lib/periodo";
+import { capturarSnapshot, mesAnteriorA } from "@/lib/metricSnapshot";
 
 // No plano gratuito da Vercel o cron roda só 1x/dia, então essa rota
 // precisa dar conta de vários posts vencidos numa única execução.
@@ -96,47 +97,38 @@ export async function GET(request: NextRequest) {
 
   const newsRefreshed = await refreshMarketNews();
   const storiesCaptured = await captureActiveStories();
-  const snapshotsSaved = await captureMetricSnapshots();
+  const snapshots = await captureMetricSnapshots();
 
-  return NextResponse.json({ processed: results.length, results, newsRefreshed, storiesCaptured, snapshotsSaved });
+  return NextResponse.json({ processed: results.length, results, newsRefreshed, storiesCaptured, snapshots });
 }
 
-// Grava o retrato das métricas do mês corrente para cada cliente conectado.
-// Reescreve a cada execução: o mês vai se completando até fechar. Sem isto não
-// existe histórico nenhum — o dashboard consulta o Meta ao vivo e não guarda nada,
-// então cada mês sem captura é um mês que nunca poderá ser analisado.
-async function captureMetricSnapshots(): Promise<number> {
-  const accounts = await db.instagramAccount.findMany();
-  const period = currentPeriod();
-  const { month, year } = parsePeriod(period);
-  const since = Math.floor(new Date(year, month - 1, 1, 0, 0, 0).getTime() / 1000);
-  const until = Math.floor(new Date(year, month, 0, 23, 59, 59).getTime() / 1000);
+// Grava o retrato do mês corrente e, uma vez, o do mês que acabou de fechar.
+//
+// O mês corrente é reescrito a cada execução, porque ainda está sendo somado. O mês
+// anterior é capturado só enquanto não estiver marcado como fechado: depois disso o
+// relatório dele vem do banco e não se mexe mais — a API do Meta descarta insights
+// antigos, então essa é a única cópia que sobrevive.
+async function captureMetricSnapshots(): Promise<{ corrente: number; fechados: number }> {
+  const contas = await db.instagramAccount.findMany({ select: { clientId: true } });
+  const corrente = currentPeriod();
+  const anterior = mesAnteriorA(corrente);
 
-  let saved = 0;
+  let feitosCorrente = 0;
+  let feitosFechados = 0;
+
   await Promise.allSettled(
-    accounts.map(async (account) => {
-      const [totals, profile] = await Promise.all([
-        getAccountTotals(account.igUserId, account.pageAccessToken, since, until),
-        getProfileMetrics(account.igUserId, account.pageAccessToken),
-      ]);
+    contas.map(async ({ clientId }) => {
+      if (await capturarSnapshot(clientId, corrente)) feitosCorrente += 1;
 
-      const dados = {
-        followers: profile.followers_count ?? null,
-        mediaCount: profile.media_count ?? null,
-        reach: totals.reach,
-        profileViews: totals.profileViews,
-      };
-
-      await db.metricSnapshot.upsert({
-        where: { clientId_period: { clientId: account.clientId, period } },
-        create: { clientId: account.clientId, period, ...dados },
-        update: dados,
+      const jaFechado = await db.metricSnapshot.findUnique({
+        where: { clientId_period: { clientId, period: anterior } },
+        select: { closed: true },
       });
-      saved += 1;
+      if (!jaFechado?.closed && (await capturarSnapshot(clientId, anterior))) feitosFechados += 1;
     })
   );
 
-  return saved;
+  return { corrente: feitosCorrente, fechados: feitosFechados };
 }
 
 // A API do Meta só expõe Stories ativos (< 24h) — captura o instantâneo de agora e guarda,

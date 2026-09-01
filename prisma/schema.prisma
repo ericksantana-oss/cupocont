@@ -145,14 +145,34 @@ model ClientRule {
 // analisar tendência de vários meses seria impossível para sempre, porque o dado
 // não estaria sendo acumulado. Mesmo raciocínio da captura de Stories.
 model MetricSnapshot {
-  id           String   @id @default(cuid())
-  clientId     String
-  period       String // "2026-08"
-  followers    Int?
-  mediaCount   Int?
-  reach        Int? // alcance somado no período
-  profileViews Int?
-  capturedAt   DateTime @updatedAt // o mês corrente é reescrito a cada execução até fechar
+  id       String @id @default(cuid())
+  clientId String
+  period   String // "2026-08"
+
+  // Instagram
+  followers      Int?
+  mediaCount     Int?
+  reach          Int? // soma do alcance de cada dia — é o número que o Reportei mostra
+  reachUnique    Int? // alcance deduplicado no período
+  views          Int?
+  profileViews   Int?
+  accountsEngaged Int?
+  interactions   Int?
+  websiteClicks  Int?
+  dailyReach     Json? // [{ date, value }] para o gráfico
+  posts          Json? // tabela de postagens congelada
+
+  // Facebook
+  fbFollowers    Int?
+  fbPageViews    Int?
+  fbEngagement   Int?
+  fbNewFollowers Int?
+  fbPosts        Json?
+
+  // true quando o mês fechou e foi capturado por inteiro. Mês corrente fica false
+  // e é reescrito a cada execução; mês fechado não se mexe mais.
+  closed     Boolean  @default(false)
+  capturedAt DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
