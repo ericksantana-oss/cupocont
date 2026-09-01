@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CupolaMark } from "@/components/CupolaMark";
 import { getSquadLogoPublicUrl } from "@/lib/storage";
 import { periodLabel } from "@/lib/periodo";
-import { listAccessibleClients, listRecentClients, listPendingApprovals, listMarketNews } from "./actions";
+import { listAccessibleClients, listRecentClients, listPendingApprovals, listMarketNews, listAvisosDeConexao } from "./actions";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -27,11 +27,12 @@ export default async function ClientsPage({
 
   const showSquadPicker = (user.role === "ADMIN" || user.role === "INTERN") && !q;
 
-  const [clients, recentClients, pendingApprovals, marketNews, squads] = await Promise.all([
+  const [clients, recentClients, pendingApprovals, marketNews, avisosDeConexao, squads] = await Promise.all([
     listAccessibleClients(q),
     listRecentClients(),
     listPendingApprovals(),
     listMarketNews(),
+    listAvisosDeConexao(),
     showSquadPicker
       ? db.squad.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { clients: true } } } })
       : Promise.resolve([]),
@@ -62,6 +63,30 @@ export default async function ClientsPage({
       </div>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
+        {avisosDeConexao.length > 0 && !q && (
+          <div className="mb-10">
+            <h2 className="rotulo">Conexão com o Meta</h2>
+            <div className="cartao mt-3 divide-y divide-linha-2">
+              {avisosDeConexao.map((aviso) => (
+                <Link
+                  key={aviso.clientId}
+                  href={`/clients/${aviso.clientId}/contexto`}
+                  className="flex flex-wrap items-center gap-3 p-4 hover:bg-bruma/10"
+                >
+                  <AlertTriangle
+                    className={`size-4 shrink-0 ${aviso.status.nivel === "critico" ? "text-risco" : "text-alerta"}`}
+                    strokeWidth={1.5}
+                  />
+                  <span className="font-medium">{aviso.clientName}</span>
+                  <span className="text-tinta-3">·</span>
+                  <span className="flex-1 text-sm text-tinta-2">{aviso.status.mensagem}</span>
+                  <ArrowRight className="size-4 shrink-0 text-tinta-3" strokeWidth={1.5} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {pendingApprovals.length > 0 && !q && (
           <div className="mb-10">
             <h2 className="rotulo">

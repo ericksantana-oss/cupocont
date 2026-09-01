@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verificarConta } from "@/lib/meta/tokenHealth";
 import { requireClientAccess } from "@/lib/auth/guards";
 import {
   exchangeCodeForUserToken,
@@ -67,8 +68,15 @@ export async function GET(request: NextRequest) {
           pageId: only.pageId,
           pageName: only.pageName,
           pageAccessToken: only.pageAccessToken,
+          // Reconexao zera o estado de saude antigo; verificarConta() preenche em seguida.
+          tokenValid: true,
+          tokenCheckedAt: null,
+          tokenExpiresAt: null,
+          tokenDataAccessExpiresAt: null,
+          tokenError: null,
         },
       });
+      await verificarConta(clientId);
       return redirectTo("connected");
     }
 

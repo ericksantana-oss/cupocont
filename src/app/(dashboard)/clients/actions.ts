@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, requireAdmin } from "@/lib/auth/guards";
+import { listarConexoesComAviso, type ConexaoComAviso } from "@/lib/meta/tokenHealth";
 
 export async function createClientAction(formData: FormData) {
   await requireAdmin();
@@ -101,6 +102,15 @@ export async function listAccessibleClients(search?: string, squadId?: string) {
     where: { ...accessFilterFor(user), ...searchFilter, ...(squadId ? { squadId } : {}) },
     orderBy: { name: "asc" },
   });
+}
+
+// Conexões do Meta que precisam de atenção, entre os clientes que esta pessoa vê.
+// Passa os ids adiante em vez de consultar todas as contas: um aviso global revelaria
+// a existência de cliente de outro squad.
+export async function listAvisosDeConexao(): Promise<ConexaoComAviso[]> {
+  const user = await requireUser();
+  const clients = await db.client.findMany({ where: accessFilterFor(user), select: { id: true } });
+  return listarConexoesComAviso(clients.map((c) => c.id));
 }
 
 export async function listRecentClients(squadId?: string) {

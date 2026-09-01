@@ -4,6 +4,37 @@ Armadilhas descobertas na pratica. Quase tudo aqui custou horas.
 LER ANTES de mexer nas integracoes do Meta ou do Gemini.
 
 
+TOKEN DO META: o prazo que corre nao e o que parece
+=====================================================
+Conferido com /debug_token nas 3 contas reais em 01/09/2026.
+
+  expires_at: 0                       o token de Pagina NAO expira
+  data_access_expires_at: 30/11/2026  o acesso aos dados vence em 90 dias
+
+O token de Pagina obtido a partir de um token de usuario de LONGA DURACAO nao
+expira. O comentario que sempre esteve no schema estava certo.
+
+O que vence e o acesso aos dados: 90 dias apos a autorizacao. O valor e o mesmo
+para as tres contas porque o prazo pertence ao usuario que autorizou, nao a cada
+Pagina — reconectar uma reinicia o relogio das tres.
+
+ERRO COMETIDO em 01/09/2026: afirmei que o token durava 60 dias e propus o aviso
+com base nisso. Os 60 dias sao do token de USUARIO intermediario, que o projeto
+usa uma vez e descarta no callback. Nunca chega ao banco.
+
+O que evitou o erro ir para o codigo: rodar /debug_token contra a conta real
+antes de escrever qualquer linha. Custou dois minutos. E a mesma disciplina que
+faltou no episodio do read_insight logo abaixo.
+
+Licao: prazo de token do Meta nao se deduz da documentacao nem da memoria. Sao
+tres relogios diferentes (token curto, token longo, acesso aos dados) e o
+/debug_token diz qual esta correndo em cada caso.
+
+Efeito colateral util da conferencia: as 3 contas ja carregam
+pages_read_user_content no escopo. A pendencia de reconectar as contas estava
+resolvida sem ninguem saber.
+
+
 API DO GEMINI
 =============
 

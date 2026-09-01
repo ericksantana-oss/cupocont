@@ -6,6 +6,7 @@ import { getPostMediaSignedUrl } from "@/lib/storage";
 import { fetchAllMarketNews } from "@/lib/news/marketNews";
 import { currentPeriod } from "@/lib/periodo";
 import { capturarSnapshot, mesAnteriorA } from "@/lib/metricSnapshot";
+import { verificarTodasAsContas } from "@/lib/meta/tokenHealth";
 
 // No plano gratuito da Vercel o cron roda só 1x/dia, então essa rota
 // precisa dar conta de vários posts vencidos numa única execução.
@@ -99,7 +100,11 @@ export async function GET(request: NextRequest) {
   const storiesCaptured = await captureActiveStories();
   const snapshots = await captureMetricSnapshots();
 
-  return NextResponse.json({ processed: results.length, results, newsRefreshed, storiesCaptured, snapshots });
+  // Depois dos snapshots, de proposito: se o acesso vencer, o congelamento do mes e a
+  // primeira coisa a parar em silencio, e o aviso serve justamente para evitar isso.
+  const conexoes = await verificarTodasAsContas();
+
+  return NextResponse.json({ processed: results.length, results, newsRefreshed, storiesCaptured, snapshots, conexoes });
 }
 
 // Grava o retrato do mês corrente e, uma vez, o do mês que acabou de fechar.

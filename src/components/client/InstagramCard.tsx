@@ -1,7 +1,8 @@
-import { Instagram, RefreshCw, Unlink } from "lucide-react";
+import { AlertTriangle, Instagram, RefreshCw, Unlink } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/formatDate";
+import { avaliarConexao } from "@/lib/meta/tokenHealth";
 import {
   syncInstagramAction,
   disconnectInstagramAction,
@@ -64,9 +65,34 @@ export async function InstagramCard({ clientId }: { clientId: string }) {
 
   const syncAction = syncInstagramAction.bind(null, clientId);
   const disconnectAction = disconnectInstagramAction.bind(null, clientId);
+  const conexao = avaliarConexao(account);
 
   return (
     <div className="cartao p-6">
+      {conexao.nivel !== "ok" && (
+        <div
+          className={`mb-4 flex items-start gap-3 rounded-controle border p-4 text-sm ${
+            conexao.nivel === "critico" ? "border-risco/40 bg-risco/10" : "border-alerta/40 bg-alerta/10"
+          }`}
+        >
+          <AlertTriangle
+            className={`mt-0.5 size-4 shrink-0 ${conexao.nivel === "critico" ? "text-risco" : "text-alerta"}`}
+            strokeWidth={1.5}
+          />
+          <div>
+            <p className="font-medium">{conexao.mensagem}</p>
+            <p className="mt-1 text-tinta-3">
+              Enquanto isso não for feito, o relatório fica vazio e o histórico do mês não é salvo — e mês
+              não salvo o Meta não devolve depois.
+            </p>
+            <a href={`/api/meta/connect?clientId=${clientId}`} className="mt-3 inline-block">
+              <Button type="button" size="sm">
+                Reconectar agora
+              </Button>
+            </a>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Instagram conectado</h2>

@@ -107,14 +107,17 @@ OPERACIONAIS
 ============
 
 
-[8] Reconectar as contas de Meta dos clientes
------------------------------------------------
-A permissao pages_read_user_content foi adicionada ao escopo do OAuth, mas
-tokens antigos nao a recebem sozinhos. Sem ela, a secao de dados da Pagina do
-Facebook no dashboard fica vazia.
+[8] Reconectar as contas ate 30/11/2026 — TEM PRAZO
+-----------------------------------------------------
+O acesso aos dados do Meta vence 90 dias depois da autorizacao. Para as 3
+contas conectadas hoje, isso cai em 30/11/2026 — as tres na mesma data, porque
+o prazo e do usuario que autorizou, nao de cada Pagina.
 
-Solucao: reconectar cada cliente uma vez, na aba de Contexto.
-Contas conectadas hoje: 3.
+Nao precisa fazer nada agora. A ferramenta avisa sozinha a partir de
+31/10/2026, na tela inicial e no card de Contexto, com botao de reconectar.
+Registrado aqui so para o prazo nao depender de o aviso funcionar.
+
+Reconectar uma conta reinicia o relogio das tres.
 
 
 [9] Congelar o historico dos meses passados — TEM PRAZO
@@ -142,8 +145,8 @@ depois da reestruturacao. Typecheck e build passam, o que nao garante layout.
 Vale abrir o relatorio de um cliente e o PDF uma vez e olhar.
 
 
-[9] Senhas temporarias dos 5 usuarios novos
----------------------------------------------
+[11] Senhas temporarias dos 5 usuarios novos
+----------------------------------------------
 Criados na importacao da planilha em 20/08/2026 com senha aleatoria. Precisam
 receber a senha e trocar no primeiro acesso.
 
@@ -162,6 +165,7 @@ para recuperar a original.
 SUGESTOES NAO IMPLEMENTADAS
 ===========================
 Levantadas e nao aprovadas. Registradas para nao se perderem.
+Serie propria (S1, S2...) para nao colidir com a numeracao das pendencias.
 
 Ja saíram desta lista e viraram funcionalidade em 26/08/2026: deteccao de tema
 repetido, desempenho passado alimentando a geracao, snapshot mensal de metricas,
@@ -169,7 +173,7 @@ regras fixas por cliente, copiar briefing do mes anterior e busca semantica.
 Ver decisoes.txt.
 
 
-[10] Campo de "data prevista" por post
+[S1] Campo de "data prevista" por post
 ----------------------------------------
 Um campo de data em cada post do fluxo, mais uma visao de calendario do mes.
 
@@ -182,7 +186,7 @@ Mata a duplicacao no ClickUp com zero risco de post nao publicado, e faz o
 alerta de cobertura funcionar com dado confiavel.
 
 
-[11] Link de aprovacao para o cliente
+[S2] Link de aprovacao para o cliente
 ---------------------------------------
 Link so-leitura por cliente/mes onde o cliente ve os posts planejados e aprova
 ou comenta. Hoje isso vira ida e volta de print no WhatsApp — trabalho que nao
@@ -192,7 +196,7 @@ Risco baixo: so leitura e comentario, nada vai ao ar sozinho.
 Esforco: o maior da lista de sugestoes.
 
 
-[12] Verificacao de termos proibidos
+[S3] Verificacao de termos proibidos
 --------------------------------------
 Checagem mecanica (sem IA, sem custo, sem alucinacao) que destaca termos do
 glossario proibido do cliente dentro do texto gerado, antes da aprovacao.
@@ -201,7 +205,7 @@ Depende de estruturar os termos proibidos por cliente — hoje eles vivem
 dentro dos documentos de contexto, em texto livre.
 
 
-[13] Carrossel no Facebook publica so a primeira imagem
+[S4] Carrossel no Facebook publica so a primeira imagem
 ---------------------------------------------------------
 Limitacao conhecida de publishToFacebook. So importa se a publicacao pela
 ferramenta voltar ao escopo (ver decisoes.txt, 26/08/2026).

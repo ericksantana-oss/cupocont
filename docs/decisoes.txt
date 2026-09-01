@@ -4,6 +4,57 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+01/09/2026 — Reconectar as contas nao era mais necessario (pendencia encerrada)
+--------------------------------------------------------------------------------
+A pendencia de reconectar as contas para ganhar pages_read_user_content estava
+resolvida sem ninguem saber. O /debug_token das 3 contas conectadas mostra a
+permissao presente em todas: foram conectadas depois da mudanca de escopo.
+
+Encerrada sem trabalho nenhum. Fica registrado porque o custo aqui foi o
+inverso do normal — a pendencia ficou semanas na lista pedindo uma acao que ja
+nao existia, e ninguem tinha como saber sem consultar o Meta.
+
+Licao operacional: pendencia que depende de estado externo precisa de uma forma
+de conferir o estado, senao envelhece sozinha. O aviso de conexao abaixo passa
+a fazer essa conferencia todo dia.
+
+
+01/09/2026 — Aviso de acesso ao Meta vencendo
+----------------------------------------------
+O cron diario passa a consultar /debug_token de cada conta conectada e grava o
+resultado. Quando falta 30 dias ou menos, aparece aviso na tela inicial (so
+para os clientes que a pessoa ve) e no card de Contexto, com botao de
+reconectar.
+
+O prazo que corre NAO e o do token. Conferido nas 3 contas reais em 01/09/2026:
+o token de Pagina devolve expires_at = 0, ou seja, nao expira. O que vence e o
+data_access_expires_at — 90 dias apos a autorizacao — e ele vale para as tres
+ao mesmo tempo, porque o prazo e do usuario que autorizou, nao da Pagina.
+
+Vencimento atual das 3 contas: 30/11/2026. O primeiro aviso aparece em
+31/10/2026.
+
+Por que virou prioridade acima de funcionalidade nova: quando esse prazo vence,
+nada quebra na tela. As consultas voltam vazias e o cron para de congelar os
+meses — e mes nao congelado o Meta nao devolve depois. E a unica perda
+irreversivel do projeto, e hoje ela aconteceria sem ninguem perceber.
+
+Escolhas do desenho:
+  - Falha de rede NAO marca o token como invalido. So um is_valid: false do
+    proprio Meta faz isso. Sem essa distincao, instabilidade passageira viraria
+    alarme falso e o aviso perderia credibilidade.
+  - Limite de 30 dias porque o cron roda 1x/dia: da um mes de folga para
+    alguem reconectar sem correria.
+  - O aviso da tela inicial recebe os ids dos clientes que a pessoa pode ver.
+    Um aviso global revelaria a existencia de cliente de outro squad — mesma
+    logica do filtro de acesso na busca semantica.
+  - Reconectar zera o estado de saude antes de reverificar, para que um erro
+    velho nao continue na tela se a reverificacao nao responder.
+
+Descartado: alertar por e-mail. A tela inicial e vista todo dia por quem opera;
+e-mail acrescentaria infraestrutura de envio para o mesmo efeito.
+
+
 01/09/2026 — Meses fechados vem do historico, nao da API
 --------------------------------------------------------
 O relatorio escolhe a fonte sozinho: mes de calendario fechado e ja congelado

@@ -14,6 +14,7 @@ import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemePiece } from "@/lib/ai/prompts/generateText";
 import { normalizeSlideRoles, parseSlides, type PieceFormat, type Slide } from "@/lib/contentPiece";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
+import { verificarConta } from "@/lib/meta/tokenHealth";
 import { indexarTemas } from "@/lib/themeSimilarity";
 import { capturarSnapshot } from "@/lib/metricSnapshot";
 import { currentPeriod, parsePeriod, formatPeriod } from "@/lib/periodo";
@@ -156,9 +157,16 @@ export async function chooseInstagramAccountAction(clientId: string, formData: F
       pageId: chosen.pageId,
       pageName: chosen.pageName,
       pageAccessToken: chosen.pageAccessToken,
+      // Reconexão zera o estado de saúde antigo; verificarConta() preenche em seguida.
+      tokenValid: true,
+      tokenCheckedAt: null,
+      tokenExpiresAt: null,
+      tokenDataAccessExpiresAt: null,
+      tokenError: null,
     },
   });
   await db.instagramPendingSelection.delete({ where: { id: selectionId } });
+  await verificarConta(clientId);
 
   revalidateClient(clientId);
 }
