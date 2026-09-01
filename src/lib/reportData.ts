@@ -1,16 +1,14 @@
 import { db } from "@/lib/db";
 import { generateDashboardInsights } from "@/lib/ai/prompts/generateDashboardInsights";
 import {
-  getAccountTotals,
-  getProfileMetrics,
-  getMediaInPeriod,
-  getDailyReach,
-  getPageFollowers,
-  getPageTotals,
-  getPagePostsInPeriod,
-  type PeriodMedia,
-  type PagePost,
-} from "@/lib/meta/graph";
+  getInstagramMetrics,
+  getInstagramPosts,
+  getFacebookMetrics,
+  type MetricasInstagram,
+  type MetricasFacebook,
+  type PostInstagram,
+} from "@/lib/meta/insights";
+import { getPagePostsInPeriod, type PagePost } from "@/lib/meta/graph";
 import type { StoryInsight } from "@prisma/client";
 
 export const MEDIA_TYPE_LABEL: Record<string, string> = {
@@ -36,19 +34,19 @@ export function defaultRange(): { from: string; to: string } {
   return { from: toInputValue(from), to: toInputValue(to) };
 }
 
-// Calcula o período anterior com a mesma duração, imediatamente antes do período escolhido —
-// mesma lógica usada nos relatórios do Reportei (ex: 01/07 a 31/07 compara com 01/06 a 30/06).
+// Período anterior de mesma duração, imediatamente antes — igual ao Reportei
+// (01/08 a 31/08 compara com 01/07 a 31/07).
 export function dateRangeUnix(from: string, to: string) {
   const sinceDate = parseDateInput(from);
   sinceDate.setHours(0, 0, 0, 0);
   const untilDate = parseDateInput(to);
   untilDate.setHours(23, 59, 59, 0);
 
-  const days = Math.round((untilDate.getTime() - sinceDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const dias = Math.round((untilDate.getTime() - sinceDate.getTime()) / 86400000) + 1;
 
-  const prevUntilDate = new Date(sinceDate.getTime() - 24 * 60 * 60 * 1000);
+  const prevUntilDate = new Date(sinceDate.getTime() - 86400000);
   prevUntilDate.setHours(23, 59, 59, 0);
-  const prevSinceDate = new Date(prevUntilDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+  const prevSinceDate = new Date(prevUntilDate.getTime() - (dias - 1) * 86400000);
   prevSinceDate.setHours(0, 0, 0, 0);
 
   return {
@@ -61,8 +59,8 @@ export function dateRangeUnix(from: string, to: string) {
   };
 }
 
-export function pctChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;
+export function pctChange(current: number | null, previous: number | null): number | null {
+  if (current == null || previous == null || previous === 0) return null;
   return ((current - previous) / previous) * 100;
 }
 
@@ -74,22 +72,23 @@ export type DashboardReportData = {
   rangeLabel: string;
   from: string;
   to: string;
-  totals: { reach: number; profileViews: number };
-  prevTotals: { reach: number; profileViews: number };
-  followers: number | null;
-  media: PeriodMedia[];
-  dailyReach: { date: string; value: number }[];
-  storyInsights: StoryInsight[];
-  pageFollowers: number | null;
-  pageTotals: { impressions: number; newFollowers: number; engagements: number } | null;
-  prevPageTotals: { impressions: number; newFollowers: number; engagements: number } | null;
-  pagePosts: PagePost[];
+  instagram: MetricasInstagram;
+  instagramAnterior: MetricasInstagram;
+  posts: PostInstagram[];
+  stories: StoryInsight[];
+  facebook: MetricasFacebook | null;
+  facebookAnterior: MetricasFacebook | null;
+  facebookPosts: PagePost[];
   insights: string[];
 };
 
-// Reúne todos os dados do dashboard de resultados (Instagram, Facebook, Stories, insights de IA)
-// pra um cliente e período — usado tanto pela tela quanto pela exportação em PDF, garantindo os mesmos números.
-export async function loadDashboardReportData(clientId: string, from: string, to: string): Promise<DashboardReportData | null> {
+// Reúne tudo do relatório de resultados, separado por rede. Usado pela tela e pelo
+// PDF, para os dois mostrarem exatamente os mesmos números.
+export async function loadDashboardReportData(
+  clientId: string,
+  from: string,
+  to: string
+): Promise<DashboardReportData | null> {
   const client = await db.client.findUnique({ where: { id: clientId } });
   if (!client) return null;
 
@@ -99,36 +98,44 @@ export async function loadDashboardReportData(clientId: string, from: string, to
   const { since, until, prevSince, prevUntil, sinceDate, untilDate } = dateRangeUnix(from, to);
   const rangeLabel = `${sinceDate.toLocaleDateString("pt-BR")} a ${untilDate.toLocaleDateString("pt-BR")}`;
 
-  const [totals, prevTotals, profile, media, dailyReach, storyInsights] = await Promise.all([
-    getAccountTotals(account.igUserId, account.pageAccessToken, since, until),
-    getAccountTotals(account.igUserId, account.pageAccessToken, prevSince, prevUntil),
-    getProfileMetrics(account.igUserId, account.pageAccessToken),
-    getMediaInPeriod(account.igUserId, account.pageAccessToken, since, until),
-    getDailyReach(account.igUserId, account.pageAccessToken, since, until),
+  const [instagram, instagramAnterior, posts, stories] = await Promise.all([
+    getInstagramMetrics(account.igUserId, account.pageAccessToken, { since, until }),
+    getInstagramMetrics(account.igUserId, account.pageAccessToken, { since: prevSince, until: prevUntil }),
+    getInstagramPosts(account.igUserId, account.pageAccessToken, { since, until }),
     db.storyInsight.findMany({
       where: { clientId, timestamp: { gte: sinceDate, lte: untilDate } },
       orderBy: { timestamp: "desc" },
     }),
   ]);
 
-  const [pageFollowers, pageTotals, prevPageTotals, pagePosts] = account.pageId
+  const [facebook, facebookAnterior, facebookPosts] = account.pageId
     ? await Promise.all([
-        getPageFollowers(account.pageId, account.pageAccessToken),
-        getPageTotals(account.pageId, account.pageAccessToken, since, until),
-        getPageTotals(account.pageId, account.pageAccessToken, prevSince, prevUntil),
+        getFacebookMetrics(account.pageId, account.pageAccessToken, { since, until }),
+        getFacebookMetrics(account.pageId, account.pageAccessToken, { since: prevSince, until: prevUntil }),
         getPagePostsInPeriod(account.pageId, account.pageAccessToken, since, until),
       ])
-    : [null, null, null, [] as PagePost[]];
+    : [null, null, [] as PagePost[]];
 
   const insights = await generateDashboardInsights({
     clientName: client.name,
     period: rangeLabel,
-    reach: totals.reach,
-    prevReach: prevTotals.reach,
-    profileViews: totals.profileViews,
-    prevProfileViews: prevTotals.profileViews,
-    followers: profile.followers_count ?? 0,
-    media,
+    reach: instagram.alcanceSomaDiaria ?? 0,
+    prevReach: instagramAnterior.alcanceSomaDiaria ?? 0,
+    profileViews: instagram.visitasPerfil ?? 0,
+    prevProfileViews: instagramAnterior.visitasPerfil ?? 0,
+    followers: instagram.followers ?? 0,
+    media: posts.map((p) => ({
+      id: p.id,
+      caption: p.caption ?? undefined,
+      media_type: p.mediaType,
+      timestamp: p.timestamp,
+      permalink: p.permalink,
+      like_count: p.curtidas,
+      comments_count: p.comentarios,
+      reach: p.alcance,
+      saved: p.salvos,
+      shares: p.compartilhamentos,
+    })),
   }).catch(() => []);
 
   return {
@@ -139,16 +146,13 @@ export async function loadDashboardReportData(clientId: string, from: string, to
     rangeLabel,
     from,
     to,
-    totals,
-    prevTotals,
-    followers: profile.followers_count ?? null,
-    media,
-    dailyReach,
-    storyInsights,
-    pageFollowers,
-    pageTotals,
-    prevPageTotals,
-    pagePosts,
+    instagram,
+    instagramAnterior,
+    posts,
+    stories,
+    facebook,
+    facebookAnterior,
+    facebookPosts,
     insights,
   };
 }

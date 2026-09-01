@@ -3,292 +3,361 @@ import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import type { DashboardReportData } from "@/lib/reportData";
 import { MEDIA_TYPE_LABEL, pctChange } from "@/lib/reportData";
 
-const COLOR_INK = "#1c2620";
-const COLOR_MUTED = "#6b7570";
-const COLOR_ACCENT = "#3f6b4f";
-const COLOR_LINE = "#e2e6e3";
-const COLOR_BG = "#f4f6f4";
+const TINTA = "#1c2620";
+const SUAVE = "#6b7570";
+const VERDE = "#3f6b4f";
+const LINHA = "#e2e6e3";
+const FUNDO = "#f4f6f4";
+const VERMELHO = "#b23b3b";
 
-const styles = StyleSheet.create({
-  page: { padding: 32, fontSize: 10, color: COLOR_INK, fontFamily: "Helvetica" },
-  h1: { fontSize: 20, fontFamily: "Helvetica-Bold", marginBottom: 4 },
-  h2: { fontSize: 13, fontFamily: "Helvetica-Bold", marginTop: 18, marginBottom: 8, color: COLOR_ACCENT },
-  h3: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 12, marginBottom: 6 },
-  muted: { color: COLOR_MUTED, fontSize: 9 },
-  cardsRow: { flexDirection: "row", gap: 10, marginTop: 8 },
-  card: { flex: 1, backgroundColor: COLOR_BG, borderRadius: 4, padding: 10 },
-  cardLabel: { fontSize: 8, color: COLOR_MUTED, textTransform: "uppercase" },
-  cardValue: { fontSize: 16, fontFamily: "Helvetica-Bold", marginTop: 4 },
-  cardDeltaPos: { fontSize: 8, color: COLOR_ACCENT, marginTop: 2 },
-  cardDeltaNeg: { fontSize: 8, color: "#b23b3b", marginTop: 2 },
-  table: { marginTop: 6, borderWidth: 1, borderColor: COLOR_LINE, borderRadius: 3 },
-  tr: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: COLOR_LINE },
-  trHead: { flexDirection: "row", backgroundColor: COLOR_BG, borderBottomWidth: 1, borderBottomColor: COLOR_LINE },
-  th: { padding: 5, fontSize: 8, fontFamily: "Helvetica-Bold", flex: 1 },
-  td: { padding: 5, fontSize: 8, flex: 1 },
-  footer: { position: "absolute", bottom: 20, left: 32, right: 32, fontSize: 8, color: COLOR_MUTED, textAlign: "center" },
+const s = StyleSheet.create({
+  page: { padding: 30, fontSize: 9, color: TINTA, fontFamily: "Helvetica" },
+  h1: { fontSize: 19, fontFamily: "Helvetica-Bold", marginBottom: 3 },
+  rede: {
+    fontSize: 13,
+    fontFamily: "Helvetica-Bold",
+    color: VERDE,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingBottom: 4,
+    borderBottomWidth: 1.5,
+    borderBottomColor: VERDE,
+  },
+  h3: { fontSize: 10, fontFamily: "Helvetica-Bold", marginTop: 12, marginBottom: 5 },
+  suave: { color: SUAVE, fontSize: 8 },
+  linhaCartoes: { flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" },
+  cartao: { backgroundColor: FUNDO, borderRadius: 3, padding: 8, width: "23.5%" },
+  cartaoRotulo: { fontSize: 6.5, color: SUAVE, textTransform: "uppercase" },
+  cartaoValor: { fontSize: 13, fontFamily: "Helvetica-Bold", marginTop: 3 },
+  deltaPos: { fontSize: 6.5, color: VERDE, marginTop: 2 },
+  deltaNeg: { fontSize: 6.5, color: VERMELHO, marginTop: 2 },
+  tabela: { marginTop: 5, borderWidth: 1, borderColor: LINHA, borderRadius: 2 },
+  tr: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: LINHA },
+  trCab: { flexDirection: "row", backgroundColor: FUNDO, borderBottomWidth: 1, borderBottomColor: LINHA },
+  th: { padding: 4, fontSize: 6.5, fontFamily: "Helvetica-Bold", flex: 1 },
+  td: { padding: 4, fontSize: 6.5, flex: 1 },
+  aviso: { backgroundColor: "#fbf2df", borderRadius: 3, padding: 8, marginTop: 6, fontSize: 7.5 },
+  rodape: { position: "absolute", bottom: 18, left: 30, right: 30, fontSize: 7, color: SUAVE, textAlign: "center" },
 });
 
-function fmt(n: number | null | undefined): string {
-  if (n == null) return "—";
-  return n.toLocaleString("pt-BR");
+function n(v: number | null | undefined): string {
+  return v == null ? "—" : v.toLocaleString("pt-BR");
 }
 
-function MetricCard({ label, value, delta }: { label: string; value: string; delta?: number | null }) {
+function Cartao({ rotulo, valor, delta }: { rotulo: string; valor: string; delta?: number | null }) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardLabel}>{label}</Text>
-      <Text style={styles.cardValue}>{value}</Text>
+    <View style={s.cartao}>
+      <Text style={s.cartaoRotulo}>{rotulo}</Text>
+      <Text style={s.cartaoValor}>{valor}</Text>
       {delta != null && (
-        <Text style={delta >= 0 ? styles.cardDeltaPos : styles.cardDeltaNeg}>
+        <Text style={delta >= 0 ? s.deltaPos : s.deltaNeg}>
           {delta >= 0 ? "+" : ""}
-          {delta.toFixed(1)}% vs período anterior
+          {delta.toFixed(1)}% vs anterior
         </Text>
       )}
     </View>
   );
 }
 
-export function DashboardReportDocument({ data }: { data: DashboardReportData }) {
-  const {
-    client,
-    igUsername,
-    pageId,
-    pageName,
-    rangeLabel,
-    totals,
-    prevTotals,
-    followers,
-    media,
-    storyInsights,
-    pageFollowers,
-    pageTotals,
-    prevPageTotals,
-    pagePosts,
-    insights,
-  } = data;
-
-  const reachDelta = pctChange(totals.reach, prevTotals.reach);
-  const profileViewsDelta = pctChange(totals.profileViews, prevTotals.profileViews);
-
-  const topPosts = [...media].sort((a, b) => (b.reach ?? 0) - (a.reach ?? 0)).slice(0, 8);
-  const topReels = [...media]
-    .filter((m) => m.media_type === "REELS")
-    .sort((a, b) => (b.reach ?? 0) - (a.reach ?? 0))
-    .slice(0, 5);
-
-  const sumBy = (arr: typeof storyInsights, pick: (s: (typeof storyInsights)[number]) => number | null | undefined) =>
-    arr.reduce((acc, item) => acc + (pick(item) ?? 0), 0);
-
-  const postsByType = pagePosts.reduce<Record<string, { count: number; impressions: number; reactions: number }>>(
-    (acc, post) => {
-      const bucket = acc[post.postType] ?? { count: 0, impressions: 0, reactions: 0 };
-      bucket.count += 1;
-      bucket.impressions += post.impressions ?? 0;
-      bucket.reactions += post.reactions;
-      acc[post.postType] = bucket;
-      return acc;
-    },
-    {}
+function Rodape() {
+  return (
+    <Text style={s.rodape} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
   );
-  const topPagePosts = [...pagePosts]
-    .sort((a, b) => b.reactions + b.comments + b.shares - (a.reactions + a.comments + a.shares))
+}
+
+export function DashboardReportDocument({ data }: { data: DashboardReportData }) {
+  const { instagram: ig, instagramAnterior: igAnt, posts, stories, facebook: fb, facebookAnterior: fbAnt } = data;
+
+  const somaStories = (pick: (x: (typeof stories)[number]) => number | null) =>
+    stories.reduce((acc, x) => acc + (pick(x) ?? 0), 0);
+
+  const topPosts = [...posts].sort((a, b) => (b.alcance ?? 0) - (a.alcance ?? 0)).slice(0, 10);
+  const reels = [...posts]
+    .filter((p) => p.mediaType === "REELS" || p.mediaType === "VIDEO")
+    .sort((a, b) => (b.alcance ?? 0) - (a.alcance ?? 0))
     .slice(0, 5);
+
+  const porTipo = Object.entries(
+    posts.reduce<Record<string, { posts: number; alcance: number; interacoes: number }>>((acc, p) => {
+      const rotulo = MEDIA_TYPE_LABEL[p.mediaType] ?? p.mediaType;
+      const b = acc[rotulo] ?? { posts: 0, alcance: 0, interacoes: 0 };
+      b.posts += 1;
+      b.alcance += p.alcance ?? 0;
+      b.interacoes += p.interacoes ?? p.curtidas + p.comentarios;
+      acc[rotulo] = b;
+      return acc;
+    }, {})
+  );
+
+  const fbPorTipo = Object.entries(
+    data.facebookPosts.reduce<Record<string, { count: number; reacoes: number; comentarios: number }>>((acc, p) => {
+      const b = acc[p.postType] ?? { count: 0, reacoes: 0, comentarios: 0 };
+      b.count += 1;
+      b.reacoes += p.reactions;
+      b.comentarios += p.comments;
+      acc[p.postType] = b;
+      return acc;
+    }, {})
+  );
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.h1}>Relatório de {client.name}</Text>
-        <Text style={styles.muted}>Análise de desempenho</Text>
-        <Text style={{ ...styles.muted, marginTop: 4 }}>
-          Dados analisados entre {rangeLabel} (@{igUsername}
-          {pageName ? ` · ${pageName}` : ""})
+      {/* ---------- PÁGINA 1: INSTAGRAM ---------- */}
+      <Page size="A4" style={s.page}>
+        <Text style={s.h1}>Relatório de {data.client.name}</Text>
+        <Text style={s.suave}>
+          Dados de {data.rangeLabel}, comparados com o período anterior de mesma duração.
         </Text>
 
-        <Text style={styles.h2}>Dados gerais do perfil</Text>
-        <View style={styles.cardsRow}>
-          <MetricCard label="Seguidores atuais" value={fmt(followers)} />
-          <MetricCard label="Alcance no período" value={fmt(totals.reach)} delta={reachDelta} />
-          <MetricCard label="Visitas ao perfil" value={fmt(totals.profileViews)} delta={profileViewsDelta} />
+        <Text style={s.rede}>INSTAGRAM — @{data.igUsername}</Text>
+
+        <View style={s.linhaCartoes}>
+          <Cartao rotulo="Seguidores" valor={n(ig.followers)} />
+          <Cartao
+            rotulo="Soma do alcance diário"
+            valor={n(ig.alcanceSomaDiaria)}
+            delta={pctChange(ig.alcanceSomaDiaria, igAnt.alcanceSomaDiaria)}
+          />
+          <Cartao
+            rotulo="Alcance único no período"
+            valor={n(ig.alcanceUnicoPeriodo)}
+            delta={pctChange(ig.alcanceUnicoPeriodo, igAnt.alcanceUnicoPeriodo)}
+          />
+          <Cartao
+            rotulo="Visualizações"
+            valor={n(ig.visualizacoes)}
+            delta={pctChange(ig.visualizacoes, igAnt.visualizacoes)}
+          />
+          <Cartao
+            rotulo="Visitas ao perfil"
+            valor={n(ig.visitasPerfil)}
+            delta={pctChange(ig.visitasPerfil, igAnt.visitasPerfil)}
+          />
+          <Cartao
+            rotulo="Contas engajadas"
+            valor={n(ig.contasEngajadas)}
+            delta={pctChange(ig.contasEngajadas, igAnt.contasEngajadas)}
+          />
+          <Cartao
+            rotulo="Interações totais"
+            valor={n(ig.interacoesTotais)}
+            delta={pctChange(ig.interacoesTotais, igAnt.interacoesTotais)}
+          />
+          <Cartao
+            rotulo="Cliques no site"
+            valor={n(ig.cliquesNoSite)}
+            delta={pctChange(ig.cliquesNoSite, igAnt.cliquesNoSite)}
+          />
         </View>
 
-        {insights.length > 0 && (
+        {data.insights.length > 0 && (
           <>
-            <Text style={styles.h3}>Insights do período</Text>
-            {insights.map((line, i) => (
-              <Text key={i} style={{ fontSize: 9, marginBottom: 3 }}>
-                • {line}
+            <Text style={s.h3}>Insights do período</Text>
+            {data.insights.map((l, i) => (
+              <Text key={i} style={{ fontSize: 8, marginBottom: 2 }}>
+                • {l}
               </Text>
             ))}
           </>
         )}
 
-        <Text style={styles.h3}>Postagens em destaque ({media.length} no total)</Text>
-        <View style={styles.table}>
-          <View style={styles.trHead}>
-            <Text style={{ ...styles.th, flex: 2.5 }}>Postagem</Text>
-            <Text style={styles.th}>Tipo</Text>
-            <Text style={styles.th}>Alcance</Text>
-            <Text style={styles.th}>Curtidas</Text>
-            <Text style={styles.th}>Coment.</Text>
-            <Text style={styles.th}>Salvos</Text>
+        <Text style={s.h3}>Desempenho por formato</Text>
+        <View style={s.tabela}>
+          <View style={s.trCab}>
+            <Text style={{ ...s.th, flex: 1.5 }}>Formato</Text>
+            <Text style={s.th}>Posts</Text>
+            <Text style={s.th}>Alcance</Text>
+            <Text style={s.th}>Interações</Text>
           </View>
-          {topPosts.length === 0 && (
-            <View style={styles.tr}>
-              <Text style={{ ...styles.td, flex: 1 }}>Nenhuma postagem no período.</Text>
+          {porTipo.length === 0 && (
+            <View style={s.tr}>
+              <Text style={s.td}>Nenhuma postagem no período.</Text>
             </View>
           )}
-          {topPosts.map((m) => (
-            <View key={m.id} style={styles.tr}>
-              <Text style={{ ...styles.td, flex: 2.5 }}>{(m.caption ?? "(sem legenda)").slice(0, 50)}</Text>
-              <Text style={styles.td}>{MEDIA_TYPE_LABEL[m.media_type] ?? m.media_type}</Text>
-              <Text style={styles.td}>{fmt(m.reach)}</Text>
-              <Text style={styles.td}>{fmt(m.like_count)}</Text>
-              <Text style={styles.td}>{fmt(m.comments_count)}</Text>
-              <Text style={styles.td}>{fmt(m.saved)}</Text>
+          {porTipo.map(([tipo, v]) => (
+            <View key={tipo} style={s.tr}>
+              <Text style={{ ...s.td, flex: 1.5 }}>{tipo}</Text>
+              <Text style={s.td}>{v.posts}</Text>
+              <Text style={s.td}>{n(v.alcance)}</Text>
+              <Text style={s.td}>{n(v.interacoes)}</Text>
             </View>
           ))}
         </View>
 
-        {topReels.length > 0 && (
-          <>
-            <Text style={styles.h3}>Reels em destaque</Text>
-            <View style={styles.table}>
-              <View style={styles.trHead}>
-                <Text style={{ ...styles.th, flex: 2.5 }}>Reel</Text>
-                <Text style={styles.th}>Alcance</Text>
-                <Text style={styles.th}>Curtidas</Text>
-                <Text style={styles.th}>Coment.</Text>
-                <Text style={styles.th}>Compart.</Text>
+        <Text style={s.h3}>Postagens em destaque ({posts.length} no total)</Text>
+        <View style={s.tabela}>
+          <View style={s.trCab}>
+            <Text style={{ ...s.th, flex: 3 }}>Postagem</Text>
+            <Text style={s.th}>Tipo</Text>
+            <Text style={s.th}>Alcance</Text>
+            <Text style={s.th}>Visualiz.</Text>
+            <Text style={s.th}>Curtidas</Text>
+            <Text style={s.th}>Coment.</Text>
+            <Text style={s.th}>Salvos</Text>
+            <Text style={s.th}>Taxa</Text>
+          </View>
+          {topPosts.length === 0 && (
+            <View style={s.tr}>
+              <Text style={s.td}>Nenhuma postagem no período.</Text>
+            </View>
+          )}
+          {topPosts.map((p) => {
+            const inter = p.interacoes ?? p.curtidas + p.comentarios + (p.salvos ?? 0);
+            const taxa = p.alcance && p.alcance > 0 ? (inter / p.alcance) * 100 : null;
+            return (
+              <View key={p.id} style={s.tr}>
+                <Text style={{ ...s.td, flex: 3 }}>{(p.caption ?? "(sem legenda)").slice(0, 52)}</Text>
+                <Text style={s.td}>{MEDIA_TYPE_LABEL[p.mediaType] ?? p.mediaType}</Text>
+                <Text style={s.td}>{n(p.alcance)}</Text>
+                <Text style={s.td}>{n(p.visualizacoes)}</Text>
+                <Text style={s.td}>{n(p.curtidas)}</Text>
+                <Text style={s.td}>{n(p.comentarios)}</Text>
+                <Text style={s.td}>{n(p.salvos)}</Text>
+                <Text style={s.td}>{taxa != null ? `${taxa.toFixed(1)}%` : "—"}</Text>
               </View>
-              {topReels.map((m) => (
-                <View key={m.id} style={styles.tr}>
-                  <Text style={{ ...styles.td, flex: 2.5 }}>{(m.caption ?? "(sem legenda)").slice(0, 50)}</Text>
-                  <Text style={styles.td}>{fmt(m.reach)}</Text>
-                  <Text style={styles.td}>{fmt(m.like_count)}</Text>
-                  <Text style={styles.td}>{fmt(m.comments_count)}</Text>
-                  <Text style={styles.td}>{fmt(m.shares)}</Text>
+            );
+          })}
+        </View>
+
+        {reels.length > 0 && (
+          <>
+            <Text style={s.h3}>Reels em destaque</Text>
+            <View style={s.tabela}>
+              <View style={s.trCab}>
+                <Text style={{ ...s.th, flex: 3 }}>Reel</Text>
+                <Text style={s.th}>Alcance</Text>
+                <Text style={s.th}>Visualiz.</Text>
+                <Text style={s.th}>Curtidas</Text>
+                <Text style={s.th}>Compart.</Text>
+                <Text style={s.th}>Data</Text>
+              </View>
+              {reels.map((p) => (
+                <View key={p.id} style={s.tr}>
+                  <Text style={{ ...s.td, flex: 3 }}>{(p.caption ?? "(sem legenda)").slice(0, 52)}</Text>
+                  <Text style={s.td}>{n(p.alcance)}</Text>
+                  <Text style={s.td}>{n(p.visualizacoes)}</Text>
+                  <Text style={s.td}>{n(p.curtidas)}</Text>
+                  <Text style={s.td}>{n(p.compartilhamentos)}</Text>
+                  <Text style={s.td}>{new Date(p.timestamp).toLocaleDateString("pt-BR")}</Text>
                 </View>
               ))}
             </View>
           </>
         )}
 
-        <Text style={styles.footer} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
+        <Rodape />
       </Page>
 
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.h2}>Dados de Stories</Text>
-        <Text style={styles.muted}>
-          A API do Meta só expõe Stories ativos (últimas 24h) — este histórico vem de uma captura diária feita pela
-          própria ferramenta, então só existem dados a partir do dia em que a conexão foi feita.
+      {/* ---------- PÁGINA 2: STORIES + FACEBOOK ---------- */}
+      <Page size="A4" style={s.page}>
+        <Text style={s.rede}>STORIES DO INSTAGRAM</Text>
+        <Text style={s.suave}>
+          A API do Meta só expõe Stories ativos (24h). Este histórico vem de uma captura diária da ferramenta,
+          então só existem dados a partir do dia em que a captura começou.
         </Text>
-        <View style={styles.cardsRow}>
-          <MetricCard label="Stories no período" value={fmt(storyInsights.length)} />
-          <MetricCard label="Total de respostas" value={fmt(sumBy(storyInsights, (s) => s.replies))} />
-          <MetricCard label="Total de interações" value={fmt(sumBy(storyInsights, (s) => s.interactions))} />
+
+        <View style={s.linhaCartoes}>
+          <Cartao rotulo="Stories publicados" valor={n(stories.length)} />
+          <Cartao rotulo="Visualizações" valor={n(somaStories((x) => x.impressions))} />
+          <Cartao rotulo="Alcance somado" valor={n(somaStories((x) => x.reach))} />
+          <Cartao rotulo="Respostas" valor={n(somaStories((x) => x.replies))} />
         </View>
 
-        {storyInsights.length > 0 && (
-          <View style={styles.table}>
-            <View style={styles.trHead}>
-              <Text style={styles.th}>Data</Text>
-              <Text style={styles.th}>Visualiz.</Text>
-              <Text style={styles.th}>Alcance</Text>
-              <Text style={styles.th}>Interações</Text>
-              <Text style={styles.th}>Respostas</Text>
-              <Text style={styles.th}>Avançar</Text>
-              <Text style={styles.th}>Voltar</Text>
-              <Text style={styles.th}>Saiu</Text>
+        {stories.length > 0 && (
+          <View style={s.tabela}>
+            <View style={s.trCab}>
+              <Text style={s.th}>Data</Text>
+              <Text style={s.th}>Visualiz.</Text>
+              <Text style={s.th}>Alcance</Text>
+              <Text style={s.th}>Interações</Text>
+              <Text style={s.th}>Respostas</Text>
+              <Text style={s.th}>Avançar</Text>
+              <Text style={s.th}>Voltar</Text>
+              <Text style={s.th}>Saiu</Text>
+              <Text style={s.th}>Retenção</Text>
             </View>
-            {storyInsights.map((s) => (
-              <View key={s.id} style={styles.tr}>
-                <Text style={styles.td}>{s.timestamp.toLocaleDateString("pt-BR")}</Text>
-                <Text style={styles.td}>{fmt(s.impressions)}</Text>
-                <Text style={styles.td}>{fmt(s.reach)}</Text>
-                <Text style={styles.td}>{fmt(s.interactions)}</Text>
-                <Text style={styles.td}>{fmt(s.replies)}</Text>
-                <Text style={styles.td}>{fmt(s.tapsForward)}</Text>
-                <Text style={styles.td}>{fmt(s.tapsBack)}</Text>
-                <Text style={styles.td}>{fmt(s.exits)}</Text>
-              </View>
-            ))}
+            {stories.map((x) => {
+              const ret =
+                x.impressions && x.impressions > 0 && x.exits != null
+                  ? ((x.impressions - x.exits) / x.impressions) * 100
+                  : null;
+              return (
+                <View key={x.id} style={s.tr}>
+                  <Text style={s.td}>{x.timestamp.toLocaleDateString("pt-BR")}</Text>
+                  <Text style={s.td}>{n(x.impressions)}</Text>
+                  <Text style={s.td}>{n(x.reach)}</Text>
+                  <Text style={s.td}>{n(x.interactions)}</Text>
+                  <Text style={s.td}>{n(x.replies)}</Text>
+                  <Text style={s.td}>{n(x.tapsForward)}</Text>
+                  <Text style={s.td}>{n(x.tapsBack)}</Text>
+                  <Text style={s.td}>{n(x.exits)}</Text>
+                  <Text style={s.td}>{ret != null ? `${ret.toFixed(1)}%` : "—"}</Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
-        {pageId && (
+        {data.pageId && (
           <>
-            <Text style={styles.h2}>Dados gerais da página (Facebook)</Text>
-            <View style={styles.cardsRow}>
-              <MetricCard label="Seguidores da página" value={fmt(pageFollowers)} />
-              <MetricCard
-                label="Visualizadores"
-                value={fmt(pageTotals?.impressions)}
-                delta={pageTotals && prevPageTotals ? pctChange(pageTotals.impressions, prevPageTotals.impressions) : null}
+            <Text style={s.rede}>FACEBOOK — {data.pageName}</Text>
+
+            {fb && !fb.temPermissaoInsights && (
+              <View style={s.aviso}>
+                <Text>
+                  As métricas da Página estão indisponíveis por falta da permissão read_insights, que não existia
+                  quando esta conta foi conectada. O Meta responde com lista vazia em vez de recusar, o que faz
+                  parecer ausência de atividade. Reconecte o Facebook do cliente para liberar. Os números por
+                  postagem abaixo não dependem dessa permissão.
+                </Text>
+              </View>
+            )}
+
+            <View style={s.linhaCartoes}>
+              <Cartao rotulo="Seguidores da página" valor={n(fb?.seguidores ?? null)} />
+              <Cartao
+                rotulo="Visualizações da página"
+                valor={n(fb?.visualizacoesPagina ?? null)}
+                delta={pctChange(fb?.visualizacoesPagina ?? null, fbAnt?.visualizacoesPagina ?? null)}
               />
-              <MetricCard
-                label="Novos seguidores"
-                value={fmt(pageTotals?.newFollowers)}
-                delta={pageTotals && prevPageTotals ? pctChange(pageTotals.newFollowers, prevPageTotals.newFollowers) : null}
+              <Cartao
+                rotulo="Engajamento nos posts"
+                valor={n(fb?.engajamentoPosts ?? null)}
+                delta={pctChange(fb?.engajamentoPosts ?? null, fbAnt?.engajamentoPosts ?? null)}
               />
-              <MetricCard
-                label="Engajamento"
-                value={fmt(pageTotals?.engagements)}
-                delta={pageTotals && prevPageTotals ? pctChange(pageTotals.engagements, prevPageTotals.engagements) : null}
+              <Cartao
+                rotulo="Novos seguidores"
+                valor={n(fb?.novosSeguidores ?? null)}
+                delta={pctChange(fb?.novosSeguidores ?? null, fbAnt?.novosSeguidores ?? null)}
               />
             </View>
 
-            <Text style={styles.h3}>Performance por tipo de postagem</Text>
-            <View style={styles.table}>
-              <View style={styles.trHead}>
-                <Text style={styles.th}>Tipo</Text>
-                <Text style={styles.th}>Postagens</Text>
-                <Text style={styles.th}>Visualizadores</Text>
-                <Text style={styles.th}>Reações</Text>
+            <Text style={s.h3}>Postagens por tipo</Text>
+            <View style={s.tabela}>
+              <View style={s.trCab}>
+                <Text style={{ ...s.th, flex: 1.5 }}>Tipo</Text>
+                <Text style={s.th}>Postagens</Text>
+                <Text style={s.th}>Reações</Text>
+                <Text style={s.th}>Comentários</Text>
               </View>
-              {Object.keys(postsByType).length === 0 && (
-                <View style={styles.tr}>
-                  <Text style={{ ...styles.td, flex: 1 }}>Nenhuma postagem no Facebook neste período.</Text>
+              {fbPorTipo.length === 0 && (
+                <View style={s.tr}>
+                  <Text style={s.td}>Nenhuma postagem no Facebook neste período.</Text>
                 </View>
               )}
-              {Object.entries(postsByType).map(([type, d]) => (
-                <View key={type} style={styles.tr}>
-                  <Text style={styles.td}>{type}</Text>
-                  <Text style={styles.td}>{d.count}</Text>
-                  <Text style={styles.td}>{fmt(d.impressions)}</Text>
-                  <Text style={styles.td}>{fmt(d.reactions)}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={styles.h3}>Postagens em destaque (Facebook)</Text>
-            <View style={styles.table}>
-              <View style={styles.trHead}>
-                <Text style={{ ...styles.th, flex: 2.5 }}>Postagem</Text>
-                <Text style={styles.th}>Tipo</Text>
-                <Text style={styles.th}>Visualiz.</Text>
-                <Text style={styles.th}>Reações</Text>
-                <Text style={styles.th}>Coment.</Text>
-              </View>
-              {topPagePosts.length === 0 && (
-                <View style={styles.tr}>
-                  <Text style={{ ...styles.td, flex: 1 }}>Nenhuma postagem no Facebook neste período.</Text>
-                </View>
-              )}
-              {topPagePosts.map((post) => (
-                <View key={post.id} style={styles.tr}>
-                  <Text style={{ ...styles.td, flex: 2.5 }}>{(post.message ?? "(sem legenda)").slice(0, 50)}</Text>
-                  <Text style={styles.td}>{post.postType}</Text>
-                  <Text style={styles.td}>{fmt(post.impressions)}</Text>
-                  <Text style={styles.td}>{post.reactions}</Text>
-                  <Text style={styles.td}>{post.comments}</Text>
+              {fbPorTipo.map(([tipo, v]) => (
+                <View key={tipo} style={s.tr}>
+                  <Text style={{ ...s.td, flex: 1.5 }}>{tipo}</Text>
+                  <Text style={s.td}>{v.count}</Text>
+                  <Text style={s.td}>{n(v.reacoes)}</Text>
+                  <Text style={s.td}>{n(v.comentarios)}</Text>
                 </View>
               ))}
             </View>
           </>
         )}
 
-        <Text style={styles.footer} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
+        <Rodape />
       </Page>
     </Document>
   );

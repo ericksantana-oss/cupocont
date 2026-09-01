@@ -17,7 +17,10 @@ export function buildAuthorizeUrl(state: string): string {
     state,
     response_type: "code",
     scope:
-      "pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,instagram_basic,instagram_manage_insights,instagram_content_publish,business_management",
+      // read_insights e obrigatoria para /{page-id}/insights. Sem ela o Meta responde
+      // 200 com lista vazia em vez de negar, o que fazia toda metrica de Pagina do
+      // Facebook parecer "sem atividade" quando era falta de permissao.
+      "pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,read_insights,instagram_basic,instagram_manage_insights,instagram_content_publish,business_management",
   });
 
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
