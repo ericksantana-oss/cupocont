@@ -28,15 +28,18 @@ export default async function AgendamentosPage({
   // Mesmo filtro de acesso do resto da ferramenta: redator vê os clientes do próprio
   // squad mais os liberados pontualmente.
   const acessiveis = await db.client.findMany({
-    where:
-      user.role === "ADMIN" || user.role === "INTERN"
+    // Cliente arquivado fica fora: arquivar tem que tirar da operação de verdade.
+    where: {
+      archivedAt: null,
+      ...(user.role === "ADMIN" || user.role === "INTERN"
         ? {}
         : {
             OR: [
               ...(user.squadId ? [{ squadId: user.squadId }] : []),
               { access: { some: { userId: user.id } } },
             ],
-          },
+          }),
+    },
     orderBy: { name: "asc" },
     select: { id: true, name: true, acronym: true },
   });

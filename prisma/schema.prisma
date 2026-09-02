@@ -109,16 +109,20 @@ model ClientAccess {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  name      String
+  id         String    @id @default(cuid())
+  name       String
   // Sigla curta usada nos títulos de demanda e de post ("ETM"). Única, porque é o que
   // identifica o cliente na ferramenta de gestão — duas iguais deixariam duas demandas
   // indistinguíveis. Nula só nos clientes cadastrados antes deste campo existir.
-  acronym   String?  @unique
-  niche     String // nicho/segmento, usado na busca de palavras-chave
-  ownerId   String? // redator principal responsável pelo cliente, para o painel admin
-  squadId   String? // squad dono do cliente — define quem tem acesso automático
-  createdAt DateTime @default(now())
+  acronym    String?   @unique
+  niche      String // nicho/segmento, usado na busca de palavras-chave
+  // Arquivar em vez de excluir: cliente que sai da carteira leva consigo meses de
+  // métricas congeladas que o Meta já descartou e não devolve. Excluir apagaria isso em
+  // cascata; arquivar tira da operação e preserva o histórico.
+  archivedAt DateTime?
+  ownerId    String? // redator principal responsável pelo cliente, para o painel admin
+  squadId    String? // squad dono do cliente — define quem tem acesso automático
+  createdAt  DateTime  @default(now())
 
   owner            User?             @relation("ClientOwner", fields: [ownerId], references: [id])
   squad            Squad?            @relation(fields: [squadId], references: [id], onDelete: SetNull)

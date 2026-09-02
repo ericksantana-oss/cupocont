@@ -98,9 +98,19 @@ export async function deleteClientAction(clientId: string) {
 
 // Redator: cliente do próprio squad OU liberado pontualmente via ClientAccess.
 // Admin/estagiário: todos os clientes.
-function accessFilterFor(user: { id: string; role: string; squadId: string | null }) {
-  if (user.role === "ADMIN" || user.role === "INTERN") return {};
+//
+// Cliente ARQUIVADO fica fora por padrão. O corte mora aqui, e não em cada consulta, para
+// que arquivar realmente tire o cliente da operação — lista, alertas, agendamento e busca
+// — sem depender de alguém lembrar de somar o filtro. Quem precisa ver arquivado pede
+// explicitamente (guia Clientes).
+function accessFilterFor(
+  user: { id: string; role: string; squadId: string | null },
+  opcoes: { incluirArquivados?: boolean } = {}
+) {
+  const arquivo = opcoes.incluirArquivados ? {} : { archivedAt: null };
+  if (user.role === "ADMIN" || user.role === "INTERN") return arquivo;
   return {
+    ...arquivo,
     OR: [{ access: { some: { userId: user.id } } }, ...(user.squadId ? [{ squadId: user.squadId }] : [])],
   };
 }
@@ -191,4 +201,103 @@ export async function listPendingApprovals(): Promise<PendingApproval[]> {
 export async function listMarketNews(limit = 6) {
   await requireUser();
   return db.marketNews.findMany({ orderBy: { pubDate: "desc" }, take: limit });
+}
+
+// Arquivar em vez de excluir. Excluir um cliente apaga em cascata os meses de métricas
+// congeladas — dado que o Meta já descartou e não devolve nem reconectando. Arquivar
+// tira da operação e preserva o histórico.
+export async function arquivarClienteAction(clientId: string) {
+  await requireAdmin();
+  await db.client.update({ where: { id: clientId }, data: { archivedAt: new Date() } });
+  revalidatePath("/clients");
+  revalidatePath("/clientes");
+  revalidatePath("/agendamentos");
+}
+
+export async function desarquivarClienteAction(clientId: string) {
+  await requireAdmin();
+  await db.client.update({ where: { id: clientId }, data: { archivedAt: null } });
+  revalidatePath("/clients");
+  revalidatePath("/clientes");
+  revalidatePath("/agendamentos");
+}
+
+// Edição rápida da guia Clientes: só nome, sigla e responsável. O cadastro completo
+// continua em Editar cliente — esta é para corrigir uma sigla sem trocar de tela.
+export async function edicaoRapidaAction(clientId: string, formData: FormData) {
+  await requireAdmin();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("O nome é obrigatório.");
+
+  const sigla = validarSigla(String(formData.get("acronym") ?? ""));
+  if (!sigla.ok) throw new Error(sigla.erro);
+
+  const ownerId = String(formData.get("ownerId") ?? "").trim() || null;
+
+  await db.client
+    .update({ where: { id: clientId }, data: { name, acronym: sigla.sigla, ownerId } })
+    .catch((e) => {
+      if (e?.code === "P2002") throw new Error(`A sigla ${sigla.sigla} já está em uso por outro cliente.`);
+      throw e;
+    });
+
+  if (ownerId) {
+    await db.clientAccess.upsert({
+      where: { userId_clientId: { userId: ownerId, clientId } },
+      create: { userId: ownerId, clientId },
+      update: {},
+    });
+  }
+
+  revalidatePath("/clientes");
+  revalidatePath("/clients");
+}
+
+export interface ClienteNaLista {
+  id: string;
+  name: string;
+  acronym: string | null;
+  niche: string;
+  ownerId: string | null;
+  ownerName: string | null;
+  squadName: string | null;
+  archivedAt: Date | null;
+  temInstagram: boolean;
+  postsNoMes: number;
+}
+
+// Lista para a guia Clientes. Uma consulta com os contadores, em vez de somar por cliente.
+export async function listarClientesParaGestao(incluirArquivados: boolean): Promise<ClienteNaLista[]> {
+  const user = await requireUser();
+
+  const clientes = await db.client.findMany({
+    where: accessFilterFor(user, { incluirArquivados }),
+    orderBy: [{ archivedAt: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      acronym: true,
+      niche: true,
+      ownerId: true,
+      archivedAt: true,
+      owner: { select: { name: true } },
+      squad: { select: { name: true } },
+      instagramAccount: { select: { id: true } },
+      _count: { select: { themes: true } },
+    },
+  });
+
+  return clientes.map((c) => ({
+    id: c.id,
+    name: c.name,
+    acronym: c.acronym,
+    niche: c.niche,
+    ownerId: c.ownerId,
+    ownerName: c.owner?.name ?? null,
+    squadName: c.squad?.name ?? null,
+    archivedAt: c.archivedAt,
+    temInstagram: c.instagramAccount !== null,
+    postsNoMes: c._count.themes,
+  }));
 }
