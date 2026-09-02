@@ -136,19 +136,17 @@ metricas de Pagina do Facebook nao voltam por reconexao nenhuma, o Meta as
 removeu da API.
 
 
-[10] Telas nunca vistas renderizadas
---------------------------------------
-Duas frentes na mesma situacao: a camada de dados foi conferida a fundo, mas a
-TELA nunca foi aberta. Typecheck e build passam, o que nao garante layout.
+[10] Relatorio e PDF nunca foram vistos renderizados
+------------------------------------------------------
+A camada de dados foi conferida a fundo contra a conta real (julho e agosto
+batem exatamente com o Reportei), mas a TELA e o PDF nunca foram abertos
+depois da reestruturacao. Typecheck e build passam, o que nao garante layout.
 
-  a) Relatorio e PDF do Meta. Julho e agosto batem exatamente com o Reportei.
-  b) Tela de agendamento (02/09/2026). O fluxo inteiro foi verificado no banco
-     contra dados reais — criar demanda, numerar posts, agendar, mover sem
-     duplicar — mas o calendario e o arrastar e soltar nunca foram abertos no
-     navegador. Arrastar e o tipo de coisa que passa no build e falha na tela.
+Vale abrir o relatorio de um cliente e o PDF uma vez e olhar.
 
-Vale abrir as duas uma vez e olhar.
-
+Nota de 02/09/2026: a tela de agendamento saiu desta pendencia — foi aberta e
+conduzida no navegador, e o exercicio achou tres defeitos que build e typecheck
+nao pegam. Ver aprendizados.txt. Reforca que olhar a tela nao e formalidade.
 
 [11] Revisar as siglas derivadas automaticamente
 --------------------------------------------------

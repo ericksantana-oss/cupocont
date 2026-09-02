@@ -57,6 +57,18 @@ Se a coluna tem conteudo que importa, dobrar o dado para onde ele vai viver
 NA MESMA migration, antes do DROP. Foi o que se fez com os campos do briefing.
 
 
+ENDERECOS
+=========
+Producao      https://cupocont-s5vh.vercel.app
+Repositorio   github.com/ericksantana-oss/cupocont
+
+CUIDADO com os links de preview da Vercel, do tipo
+cupocont-s5vh-git-<branch>-<escopo>.vercel.app: eles exigem login na conta da
+VERCEL, nao na ferramenta. Quem abrir um desses cai numa tela "Log in to
+Vercel" e pensa que a aplicacao quebrou. Para uso normal, so o endereco de
+producao acima.
+
+
 VARIAVEIS DE AMBIENTE
 =====================
 Configuradas no painel da Vercel (Settings > Environment Variables).
@@ -69,7 +81,7 @@ Configuradas no painel da Vercel (Settings > Environment Variables).
   APP_SUPABASE_SERVICE_ROLE_KEY
   META_APP_ID
   META_APP_SECRET
-  META_REDIRECT_URI               https://<dominio>/api/meta/callback
+  META_REDIRECT_URI               https://cupocont-s5vh.vercel.app/api/meta/callback
   CRON_SECRET                     protege a rota do cron
   KEYWORDS_PROVIDER               hoje "mock"
 

@@ -4,6 +4,45 @@ Armadilhas descobertas na pratica. Quase tudo aqui custou horas.
 LER ANTES de mexer nas integracoes do Meta ou do Gemini.
 
 
+ARRASTAR E SOLTAR EM HTML5 EXIGE dataTransfer.setData
+=======================================================
+Descoberto em 02/09/2026, conduzindo a tela de agendamento no navegador.
+
+Sem chamar e.dataTransfer.setData() no dragstart, o Chrome e o Firefox NAO
+INICIAM o arraste. O cartao simplesmente nao sai do lugar. Nao ha erro no
+console, nao ha aviso: o comportamento e silencioso.
+
+  onDragStart={(e) => {
+    e.dataTransfer.setData("text/plain", id);   // <- obrigatorio
+    e.dataTransfer.effectAllowed = "move";
+  }}
+
+No drop, ler o id do dataTransfer e usar o estado do React apenas como reserva:
+se o componente remontar durante o arraste, o dataTransfer ainda carrega quem
+esta sendo movido.
+
+Cuidado ao testar por automacao: evento de mouse sintetico (left_click_drag)
+NAO dispara drag-and-drop HTML5 no Chrome. Um arraste que "nao funciona" no
+teste automatizado nao prova nada. O que prova e disparar DragEvent com um
+DataTransfer de verdade, ou arrastar a mao.
+
+
+TRUNCATE ESCONDE O QUE IMPORTA EM ESPACO APERTADO
+===================================================
+02/09/2026. Duas vezes na mesma tela:
+
+  - Celula de dia do calendario tem ~60px. "truncate" no titulo completo
+    ("ETM | 92857 | Post 4 - ...") deixava o cartao COMPLETAMENTE VAZIO, so com
+    o icone. Passou no build, passou no typecheck, e era inutil na tela.
+  - O titulo da demanda, disputando a linha com os botoes, virou "TES...".
+
+Regra: em espaco apertado, escolher um rotulo curto de proposito (ETM Post 4) em
+vez de confiar no truncate; e o que a pessoa vem ler ganha linha propria.
+
+Licao maior das duas: a camada de dados estava 100% certa nos dois casos, e a
+tela estava inutilizavel. Conferir no banco nao substitui abrir a tela.
+
+
 TOKEN DO META: o prazo que corre nao e o que parece
 =====================================================
 Conferido com /debug_token nas 3 contas reais em 01/09/2026.

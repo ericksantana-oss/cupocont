@@ -4,6 +4,28 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+02/09/2026 — Tela de agendamento conduzida no navegador
+--------------------------------------------------------
+Fluxo inteiro exercitado na producao, com dados de verificacao no cliente Teste
+e limpeza depois: sigla, nº da tarefa, validacao com campo vazio, aviso de mes
+sem demanda, finalizar producao, numeracao congelada, calendario, seletor de
+data, arrastar e soltar, mover sem duplicar, remover agendamento e filtro
+multi-cliente. Tudo funciona.
+
+Tres defeitos que SO a tela mostrou (ver aprendizados.txt):
+  1. O arraste nunca comecava — faltava dataTransfer.setData.
+  2. Cartao dentro do dia ficava vazio — truncate num espaco de 60px.
+  3. Titulo da demanda truncado em "TES..." na tela de conteudo.
+
+E um custo de desempenho: montarCalendario chamava lerDemanda por demanda
+(N+1). Como toda acao revalida a tela de agendamento, isso colocou o botao
+"Finalizar producao" em ~10s. Virou uma consulta agrupada.
+
+Nenhum dos quatro apareceria em typecheck ou build, e a camada de dados estava
+correta em todos. Fica como argumento contra dar tela por verificada porque o
+banco confere.
+
+
 02/09/2026 — Demanda do mes, nomenclatura e registro de agendamento
 --------------------------------------------------------------------
 Tres coisas que so fazem sentido juntas:
