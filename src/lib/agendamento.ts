@@ -141,7 +141,11 @@ export async function montarCalendario(clientIds: string[], period: string): Pro
             clientId: true,
             period: true,
             themes: {
-              where: { status: "SELECTED", postSchedule: null },
+              // Post reprovado pelo cliente sai daqui: nao deve ser agendado. Post ainda
+              // SEM feedback continua entrando, porque o fluxo anterior a esta etapa
+              // assumia aprovacao — bloquear o que nao tem feedback transformaria uma
+              // etapa opcional em obstaculo.
+              where: { status: "SELECTED", postSchedule: null, clientFeedback: { isNot: { verdict: "REJECTED" } } },
               orderBy: { postIndex: "asc" },
               select: { id: true, title: true, postIndex: true },
             },

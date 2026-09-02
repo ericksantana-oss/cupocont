@@ -32,6 +32,25 @@ export function BotaoDeAcao({
   );
 }
 
+// Para usar DENTRO de um <form> que já existe, com campos próprios. Não embrulha nada:
+// form aninhado é HTML inválido e o React descarta o de dentro em silêncio — já aconteceu
+// no BriefingTab.
+export function BotaoSubmit({
+  rotulo,
+  carregando,
+  disabled,
+  variant = "default",
+  size = "default",
+}: {
+  rotulo: string;
+  carregando: string;
+  disabled?: boolean;
+  variant?: "default" | "outline" | "secondary" | "ghost";
+  size?: "sm" | "default";
+}) {
+  return <Submit rotulo={rotulo} carregando={carregando} disabled={disabled} variant={variant} size={size} />;
+}
+
 function Submit({
   rotulo,
   carregando,

@@ -32,6 +32,14 @@ enum TextStatus {
   APPROVED
 }
 
+// Veredito do CLIENTE sobre um post, coletado depois da aprovação interna.
+// Dois estados de propósito: "aprovado com ajuste" caberia no comentário, e um terceiro
+// estado exigiria decidir se ele agenda ou não — nuance sem regra clara vira confusão.
+enum ClientVerdict {
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -54,6 +62,7 @@ model User {
   openedDemands   ContentDemand[]  @relation("DemandCreator")
   closedDemands   ContentDemand[]  @relation("DemandCloser")
   postSchedules   PostSchedule[]   @relation("ScheduleRegistrar")
+  clientFeedbacks ClientFeedback[] @relation("FeedbackRegistrar")
 
   @@map("users")
 }
@@ -128,6 +137,7 @@ model Client {
   rules            ClientRule[]
   demands          ContentDemand[]
   postSchedules    PostSchedule[]
+  clientFeedbacks  ClientFeedback[]
 
   @@map("clients")
 }
@@ -335,10 +345,11 @@ model ContentTheme {
   // mudasse de lugar depois o agendamento registrado deixaria de bater.
   postIndex     Int?
 
-  client       Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  briefing     Briefing        @relation(fields: [briefingId], references: [id], onDelete: Cascade)
-  texts        GeneratedText[]
-  postSchedule PostSchedule?
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefing       Briefing        @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  texts          GeneratedText[]
+  postSchedule   PostSchedule?
+  clientFeedback ClientFeedback?
 
   @@map("content_themes")
 }
@@ -393,6 +404,7 @@ enum ActivityAction {
   DEMAND_OPENED
   PRODUCTION_CLOSED
   POST_SCHEDULED
+  CLIENT_FEEDBACK
 }
 
 // Trilha de ações usada pelo painel admin: "o que aconteceu, quem fez, quando".
@@ -540,10 +552,11 @@ model ContentDemand {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  createdBy User           @relation("DemandCreator", fields: [createdById], references: [id])
-  closedBy  User?          @relation("DemandCloser", fields: [closedById], references: [id])
+  client    Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User             @relation("DemandCreator", fields: [createdById], references: [id])
+  closedBy  User?            @relation("DemandCloser", fields: [closedById], references: [id])
   schedules PostSchedule[]
+  feedbacks ClientFeedback[]
 
   @@unique([clientId, period])
   @@map("content_demands")
@@ -575,6 +588,36 @@ model PostSchedule {
   @@index([clientId, scheduledFor])
   @@index([scheduledFor])
   @@map("post_schedules")
+}
+
+// Feedback do CLIENTE sobre cada post, coletado entre finalizar a produção e agendar.
+//
+// Serve a dois propósitos ao mesmo tempo, e é por isso que vale uma tabela em vez de um
+// campo solto: (1) post reprovado pelo cliente não vai para o agendamento; (2) o que o
+// cliente recusou e comentou entra nos prompts das entregas seguintes.
+//
+// Sobre o (2): não é aprendizado de máquina. Não há treino nem memória do modelo. O
+// texto do feedback é lido do banco e injetado no prompt a cada geração, pelo mesmo
+// caminho das regras fixas (buildClientKnowledgeContext).
+model ClientFeedback {
+  id       String        @id @default(cuid())
+  clientId String
+  demandId String
+  themeId  String        @unique // um veredito por post
+  verdict  ClientVerdict
+  comment  String? // o que o cliente falou daquele post; é o que tem valor para a IA
+
+  registeredById String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  demand       ContentDemand @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  theme        ContentTheme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  registeredBy User          @relation("FeedbackRegistrar", fields: [registeredById], references: [id])
+
+  @@index([clientId, createdAt])
+  @@map("client_feedbacks")
 }
 
 // Notícias do mercado imobiliário (feed RSS externo), exibidas na tela inicial pra todo mundo.

@@ -111,11 +111,21 @@ export async function agendarPostAction(params: { themeId: string; dia: string }
 
   const tema = await db.contentTheme.findUnique({
     where: { id: params.themeId },
-    select: { clientId: true, briefing: { select: { period: true } } },
+    select: {
+      clientId: true,
+      briefing: { select: { period: true } },
+      clientFeedback: { select: { verdict: true } },
+    },
   });
   if (!tema) throw new Error("Post não encontrado.");
 
   await requireClientAccess(tema.clientId);
+
+  // Guarda no servidor, e não só na consulta que monta a tela: a tela pode estar velha,
+  // e um post que o cliente reprovou não pode ir ao ar por causa de aba desatualizada.
+  if (tema.clientFeedback?.verdict === "REJECTED") {
+    throw new Error("Este post foi reprovado pelo cliente e não pode ser agendado.");
+  }
 
   const demanda = await db.contentDemand.findUnique({
     where: { clientId_period: { clientId: tema.clientId, period: tema.briefing.period } },
@@ -171,4 +181,67 @@ export async function desagendarPostAction(themeId: string) {
     detail: "agendamento removido",
   });
   revalidar(registro.clientId);
+}
+
+// Feedback do cliente sobre os posts do mês. Salvo de uma vez, e não post por post,
+// porque na prática a pessoa passa a reunião inteira com o cliente e só então registra.
+//
+// Post sem veredito escolhido fica sem registro em vez de virar "aprovado por omissão":
+// feedback inventado entraria nos prompts como se o cliente tivesse dito.
+export async function salvarFeedbackDoMesAction(clientId: string, period: string, formData: FormData) {
+  const user = await requireClientAccess(clientId);
+
+  const demanda = await db.contentDemand.findUnique({
+    where: { clientId_period: { clientId, period } },
+    select: { id: true },
+  });
+  if (!demanda) throw new Error("Este mês ainda não é uma demanda.");
+
+  const temas = await db.contentTheme.findMany({
+    where: { clientId, status: "SELECTED", briefing: { period } },
+    select: { id: true, title: true },
+  });
+
+  let registrados = 0;
+
+  for (const tema of temas) {
+    const veredito = String(formData.get(`verdict_${tema.id}`) ?? "").trim();
+    const comentario = String(formData.get(`comment_${tema.id}`) ?? "").trim() || null;
+
+    if (veredito !== "APPROVED" && veredito !== "REJECTED") {
+      // Sem veredito: se havia feedback antes, apagar seria perder o que o cliente disse.
+      // Só não cria nada de novo.
+      continue;
+    }
+
+    await db.clientFeedback.upsert({
+      where: { themeId: tema.id },
+      create: {
+        themeId: tema.id,
+        clientId,
+        demandId: demanda.id,
+        verdict: veredito,
+        comment: comentario,
+        registeredById: user.id,
+      },
+      update: { verdict: veredito, comment: comentario, registeredById: user.id },
+    });
+    registrados += 1;
+
+    // O comentário vira regra fixa quando a pessoa marca que aquilo vale sempre. É o
+    // mecanismo mais forte que a ferramenta tem para mudar o que a IA escreve — o
+    // feedback comum é evidência, a regra fixa é ordem.
+    if (comentario && formData.get(`rule_${tema.id}`) === "on") {
+      await db.clientRule.create({ data: { clientId, rule: comentario, createdById: user.id } });
+    }
+  }
+
+  await logActivity({
+    clientId,
+    userId: user.id,
+    action: "CLIENT_FEEDBACK",
+    period,
+    detail: `${registrados} post(s)`,
+  });
+  revalidar(clientId);
 }

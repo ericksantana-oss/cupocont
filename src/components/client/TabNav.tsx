@@ -6,6 +6,7 @@ const TABS = [
   { key: "briefing", label: "2. Briefing" },
   { key: "temas", label: "3. Temas" },
   { key: "textos", label: "4. Textos" },
+  { key: "feedback", label: "5. Feedback do cliente" },
 ];
 
 export function TabNav({ clientId, period, activeTab }: { clientId: string; period: string; activeTab: string }) {

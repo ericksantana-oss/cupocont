@@ -2,16 +2,18 @@ import type { Briefing, Client } from "@prisma/client";
 import type { Keyword } from "@/lib/keywords/provider";
 import { retrieveRelevantChunks } from "@/lib/rag/retrieve";
 import { formatClientRules } from "@/lib/clientRules";
+import { formatClientFeedback } from "@/lib/clientFeedback";
 
 // Monta o bloco de "contexto do cliente" (RAG) que entra no prompt da IA.
 // A query de busca semântica usa o briefing para trazer os trechos da base
 // de conhecimento mais relevantes para o mês.
 export async function buildClientKnowledgeContext(clientId: string, searchQuery: string): Promise<string> {
-  // As regras fixas entram aqui, e não em cada chamada, para que todo prompt do
-  // cliente as receba sem depender de alguém lembrar de somá-las.
-  const [chunks, regras] = await Promise.all([
+  // As regras fixas e o feedback do cliente entram aqui, e não em cada chamada, para que
+  // todo prompt do cliente os receba sem depender de alguém lembrar de somá-los.
+  const [chunks, regras, feedback] = await Promise.all([
     retrieveRelevantChunks(clientId, searchQuery, 8),
     formatClientRules(clientId),
+    formatClientFeedback(clientId),
   ]);
 
   const base =
@@ -19,7 +21,10 @@ export async function buildClientKnowledgeContext(clientId: string, searchQuery:
       ? "Nenhum documento de contexto foi cadastrado para este cliente ainda."
       : chunks.map((chunk, i) => `[Trecho ${i + 1}]\n${chunk.content}`).join("\n\n");
 
-  return [base, regras].filter(Boolean).join("\n\n");
+  // Ordem pensada: documentos, depois regras, e o feedback do cliente por último. O que
+  // vem no fim pesa mais na leitura do modelo, e o julgamento real do cliente é a
+  // evidência mais forte que existe sobre o gosto dele.
+  return [base, regras, feedback].filter(Boolean).join("\n\n");
 }
 
 export function formatKeywordsList(keywords: Keyword[]): string {

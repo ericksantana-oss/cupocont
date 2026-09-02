@@ -11,6 +11,7 @@ import { KeywordsTab } from "@/components/client/KeywordsTab";
 import { BriefingTab } from "@/components/client/BriefingTab";
 import { ThemesTab } from "@/components/client/ThemesTab";
 import { TextsTab } from "@/components/client/TextsTab";
+import { FeedbackTab } from "@/components/client/FeedbackTab";
 
 export default async function ClientContentPage({
   params,
@@ -51,6 +52,7 @@ export default async function ClientContentPage({
           {tab === "briefing" && <BriefingTab clientId={clientId} period={period} />}
           {tab === "temas" && <ThemesTab clientId={clientId} period={period} />}
           {tab === "textos" && <TextsTab clientId={clientId} period={period} />}
+          {tab === "feedback" && <FeedbackTab clientId={clientId} period={period} />}
         </div>
       </div>
     </div>

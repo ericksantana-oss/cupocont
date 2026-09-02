@@ -15,6 +15,7 @@ export const ACTIVITY_LABELS: Record<ActivityAction, string> = {
   DEMAND_OPENED: "Mês aberto",
   PRODUCTION_CLOSED: "Produção finalizada",
   POST_SCHEDULED: "Agendamento registrado",
+  CLIENT_FEEDBACK: "Feedback do cliente registrado",
 };
 
 // Registra uma ação para o painel admin (progresso, histórico, atividade da equipe).
