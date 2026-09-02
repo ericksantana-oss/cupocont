@@ -4,6 +4,43 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+02/09/2026 — Alerta de cobertura de agendamento (o de agosto, de volta)
+------------------------------------------------------------------------
+A tela inicial passa a avisar quando um cliente esta ficando sem post no ar.
+Dois niveis, mais urgente primeiro:
+
+  sem-cobertura  nao tem nenhum agendamento, ou o ultimo dia ja passou
+  acabando       o ultimo post agendado esta a 2 dias ou menos
+
+O limite mora em DIAS_PARA_AVISAR, constante nomeada: e o primeiro numero que a
+operacao vai querer mexer depois de usar.
+
+Este alerta JA EXISTIU e foi removido em 26/08/2026. Fracassou porque lia a fila
+do Business Suite, que o Meta nao expoe: dizia "sem posts agendados" para todo
+mundo, sempre. Funciona agora porque a fonte mudou — o proprio redator registra
+o agendamento. Nao depende do Meta expor nada.
+
+So entram no alerta clientes que JA finalizaram a producao de algum mes. Cliente
+que nunca chegou ao agendamento nao esta atrasado, esta por comecar. Sem esse
+corte, os 26 clientes apareceriam como "sem posts agendados" e o aviso viraria
+um muro que ensina a ignorar a tela — que e como o alerta anterior morreu.
+
+Visibilidade: reusa accessFilterFor, a mesma regra do resto da ferramenta. Admin
+e estagiario veem todos os clientes; redator ve os do proprio squad mais os
+liberados via ClientAccess. Descartado criar uma regra propria para o alerta:
+duas regras de acesso em paralelo saem de sincronia.
+
+Verificado em producao, com dado semeado nos tres estados e limpo depois:
+
+  ADMIN   (Erick, Camila, Giuliano)  26 clientes  3 alertas
+  INTERN  (Joao)                     26 clientes  3 alertas
+  WRITER  (Tauan)                     6 clientes  2 alertas
+  WRITER  (Ana, Kamila, Dieniffer)  8/8/11 cli.   0 alertas
+
+O caso do Tauan e o que prova a regra: 2 de 3, nao tudo nem nada. E Etmos, com
+cobertura ate 20 dias a frente, corretamente NAO alertou.
+
+
 02/09/2026 — Tela de agendamento conduzida no navegador
 --------------------------------------------------------
 Fluxo inteiro exercitado na producao, com dados de verificacao no cliente Teste
