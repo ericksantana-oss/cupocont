@@ -136,16 +136,36 @@ metricas de Pagina do Facebook nao voltam por reconexao nenhuma, o Meta as
 removeu da API.
 
 
-[10] Relatorio e PDF nunca foram vistos renderizados
-------------------------------------------------------
-A camada de dados foi conferida a fundo contra a conta real (julho e agosto
-batem exatamente com o Reportei), mas a TELA e o PDF nunca foram abertos
-depois da reestruturacao. Typecheck e build passam, o que nao garante layout.
+[10] Telas nunca vistas renderizadas
+--------------------------------------
+Duas frentes na mesma situacao: a camada de dados foi conferida a fundo, mas a
+TELA nunca foi aberta. Typecheck e build passam, o que nao garante layout.
 
-Vale abrir o relatorio de um cliente e o PDF uma vez e olhar.
+  a) Relatorio e PDF do Meta. Julho e agosto batem exatamente com o Reportei.
+  b) Tela de agendamento (02/09/2026). O fluxo inteiro foi verificado no banco
+     contra dados reais — criar demanda, numerar posts, agendar, mover sem
+     duplicar — mas o calendario e o arrastar e soltar nunca foram abertos no
+     navegador. Arrastar e o tipo de coisa que passa no build e falha na tela.
+
+Vale abrir as duas uma vez e olhar.
 
 
-[11] Senhas temporarias dos 5 usuarios novos
+[11] Revisar as siglas derivadas automaticamente
+--------------------------------------------------
+A migration de 02/09/2026 atribuiu sigla a 26 clientes usando as 3 primeiras
+letras do nome. Nenhuma colidiu, mas algumas ficaram estranhas por causa de
+acento ou nome composto:
+
+  Grupo Paladio  GRU      Goes           GES
+  Vinculo        VNC      Lago/Patelli   LAG
+  Porta 8        POR      Stela Patelli  STE
+
+Sao editaveis em Editar cliente. Vale conferir antes de a sigla comecar a
+aparecer nos titulos que vao para a ferramenta de gestao — depois de circular,
+mudar a sigla muda titulo de demanda antiga (os titulos sao montados na hora).
+
+
+[12] Senhas temporarias dos 5 usuarios novos
 ----------------------------------------------
 Criados na importacao da planilha em 20/08/2026 com senha aleatoria. Precisam
 receber a senha e trocar no primeiro acesso.
@@ -170,21 +190,16 @@ Serie propria (S1, S2...) para nao colidir com a numeracao das pendencias.
 Ja saíram desta lista e viraram funcionalidade em 26/08/2026: deteccao de tema
 repetido, desempenho passado alimentando a geracao, snapshot mensal de metricas,
 regras fixas por cliente, copiar briefing do mes anterior e busca semantica.
-Ver decisoes.txt.
+Em 02/09/2026 saiu o S1 (data prevista por post), numa forma mais completa:
+demanda do mes com nº de tarefa, nomenclatura padronizada e calendario de
+agendamento. Ver decisoes.txt.
 
 
-[S1] Campo de "data prevista" por post
-----------------------------------------
-Um campo de data em cada post do fluxo, mais uma visao de calendario do mes.
-
-Resolve a dor real que o espelhamento e a publicacao tentaram resolver e nao
-resolveram: ver ate quando cada cliente tem conteudo no ar. A equipe continua
-agendando no Business Suite e registra a data ali. A ferramenta conhece o
-calendario porque o redator informou, nao porque leu do Meta.
-
-Mata a duplicacao no ClickUp com zero risco de post nao publicado, e faz o
-alerta de cobertura funcionar com dado confiavel.
-
+[S1] Campo de "data prevista" por post — IMPLEMENTADO em 02/09/2026
+--------------------------------------------------------------------
+Virou a tela "Posts agendados", mais completa do que a sugestao original:
+calendario com arrastar e soltar, demanda do mes com nº da tarefa e
+nomenclatura padronizada. Ver decisoes.txt (02/09/2026).
 
 [S2] Link de aprovacao para o cliente
 ---------------------------------------

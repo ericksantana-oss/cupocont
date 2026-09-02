@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, LayoutDashboard, LogOut, Search, Users, Users2 } from "lucide-react";
+import { CalendarDays, Home, LayoutDashboard, LogOut, Search, Users, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
 import { CupolaMark } from "@/components/CupolaMark";
@@ -41,6 +41,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <SidebarNav
             items={[
               { href: "/clients", label: "Início", icon: <Home className="size-4" strokeWidth={1.5} /> },
+              {
+                href: "/agendamentos",
+                label: "Posts agendados",
+                icon: <CalendarDays className="size-4" strokeWidth={1.5} />,
+                matchPrefix: true,
+              },
               { href: "/busca", label: "Buscar conteúdo", icon: <Search className="size-4" strokeWidth={1.5} /> },
             ]}
           />

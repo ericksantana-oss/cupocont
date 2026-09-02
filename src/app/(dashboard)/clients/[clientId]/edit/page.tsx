@@ -31,6 +31,23 @@ export default async function EditClientPage({ params }: { params: Promise<{ cli
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="acronym">Sigla</Label>
+          <Input
+            id="acronym"
+            name="acronym"
+            defaultValue={client.acronym ?? ""}
+            required
+            maxLength={5}
+            placeholder="ex: ETM"
+            className="w-[120px]"
+          />
+          <p className="text-xs text-tinta-3">
+            De 2 a 5 letras. Aparece nos títulos de demanda e de post. Mudar aqui atualiza os títulos antigos
+            também, porque eles são montados na hora e não guardados.
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="niche">Nicho / segmento</Label>
           <Input id="niche" name="niche" defaultValue={client.niche} required />
         </div>

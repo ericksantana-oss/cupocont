@@ -6,6 +6,7 @@ import { requireClientAccess } from "@/lib/auth/guards";
 import { currentPeriod } from "@/lib/periodo";
 import { PeriodSelect } from "@/components/client/PeriodSelect";
 import { TabNav } from "@/components/client/TabNav";
+import { DemandaCard } from "@/components/client/DemandaCard";
 import { KeywordsTab } from "@/components/client/KeywordsTab";
 import { BriefingTab } from "@/components/client/BriefingTab";
 import { ThemesTab } from "@/components/client/ThemesTab";
@@ -40,6 +41,8 @@ export default async function ClientContentPage({
         </div>
         <PeriodSelect period={period} />
       </div>
+
+      <DemandaCard clientId={clientId} period={period} />
 
       <div className="mt-8">
         <TabNav clientId={clientId} period={period} activeTab={tab} />

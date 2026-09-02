@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, requireAdmin } from "@/lib/auth/guards";
 import { listarConexoesComAviso, type ConexaoComAviso } from "@/lib/meta/tokenHealth";
+import { validarSigla } from "@/lib/demanda";
 
 export async function createClientAction(formData: FormData) {
   await requireAdmin();
@@ -18,7 +19,16 @@ export async function createClientAction(formData: FormData) {
     throw new Error("Nome e nicho são obrigatórios.");
   }
 
-  const client = await db.client.create({ data: { name, niche, ownerId, squadId } });
+  const sigla = validarSigla(String(formData.get("acronym") ?? ""));
+  if (!sigla.ok) throw new Error(sigla.erro);
+
+  const client = await db.client
+    .create({ data: { name, niche, acronym: sigla.sigla, ownerId, squadId } })
+    .catch((e) => {
+      // Unicidade da sigla: mensagem útil em vez do erro cru do Prisma.
+      if (e?.code === "P2002") throw new Error(`A sigla ${sigla.sigla} já está em uso por outro cliente.`);
+      throw e;
+    });
 
   if (ownerId) {
     await db.clientAccess.upsert({
@@ -44,7 +54,15 @@ export async function updateClientAction(clientId: string, formData: FormData) {
     throw new Error("Nome e nicho são obrigatórios.");
   }
 
-  await db.client.update({ where: { id: clientId }, data: { name, niche, ownerId, squadId } });
+  const sigla = validarSigla(String(formData.get("acronym") ?? ""));
+  if (!sigla.ok) throw new Error(sigla.erro);
+
+  await db.client
+    .update({ where: { id: clientId }, data: { name, niche, acronym: sigla.sigla, ownerId, squadId } })
+    .catch((e) => {
+      if (e?.code === "P2002") throw new Error(`A sigla ${sigla.sigla} já está em uso por outro cliente.`);
+      throw e;
+    });
 
   if (ownerId) {
     await db.clientAccess.upsert({

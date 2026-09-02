@@ -19,6 +19,14 @@ export default async function NewClientPage() {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="acronym">Sigla</Label>
+          <Input id="acronym" name="acronym" required maxLength={5} placeholder="ex: ETM" className="w-[120px]" />
+          <p className="text-xs text-tinta-3">
+            De 2 a 5 letras, usada nos títulos de demanda e de post: ETM | 92857 | Redes Sociais Setembro.
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="niche">Nicho / segmento</Label>
           <Input id="niche" name="niche" required placeholder="ex: incorporadora de alto padrão, imóveis na praia..." />
           <p className="text-xs text-tinta-3">Usado para buscar as palavras-chave do período relacionadas ao cliente.</p>

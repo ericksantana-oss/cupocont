@@ -51,6 +51,9 @@ model User {
   marketingEmails MarketingEmail[] @relation("EmailCreator")
   scheduledPosts  ScheduledPost[]  @relation("PostScheduler")
   clientRules     ClientRule[]     @relation("RuleAuthor")
+  openedDemands   ContentDemand[]  @relation("DemandCreator")
+  closedDemands   ContentDemand[]  @relation("DemandCloser")
+  postSchedules   PostSchedule[]   @relation("ScheduleRegistrar")
 
   @@map("users")
 }
@@ -99,6 +102,10 @@ model ClientAccess {
 model Client {
   id        String   @id @default(cuid())
   name      String
+  // Sigla curta usada nos títulos de demanda e de post ("ETM"). Única, porque é o que
+  // identifica o cliente na ferramenta de gestão — duas iguais deixariam duas demandas
+  // indistinguíveis. Nula só nos clientes cadastrados antes deste campo existir.
+  acronym   String?  @unique
   niche     String // nicho/segmento, usado na busca de palavras-chave
   ownerId   String? // redator principal responsável pelo cliente, para o painel admin
   squadId   String? // squad dono do cliente — define quem tem acesso automático
@@ -119,6 +126,8 @@ model Client {
   storyInsights    StoryInsight[]
   metricSnapshots  MetricSnapshot[]
   rules            ClientRule[]
+  demands          ContentDemand[]
+  postSchedules    PostSchedule[]
 
   @@map("clients")
 }
@@ -321,10 +330,15 @@ model ContentTheme {
   // Vetor do título + justificativa, usado para detectar tema repetido em meses
   // anteriores do mesmo cliente. Mesmo modelo local dos documentos (384 dimensões).
   embedding     Unsupported("vector(384)")?
+  // Número do post dentro da demanda ("Post 1"). Congelado quando a produção é
+  // finalizada e nunca recalculado: é o nome que a pessoa escreveu no Meta, e se
+  // mudasse de lugar depois o agendamento registrado deixaria de bater.
+  postIndex     Int?
 
-  client   Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  briefing Briefing        @relation(fields: [briefingId], references: [id], onDelete: Cascade)
-  texts    GeneratedText[]
+  client       Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefing     Briefing        @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  texts        GeneratedText[]
+  postSchedule PostSchedule?
 
   @@map("content_themes")
 }
@@ -376,6 +390,9 @@ enum ActivityAction {
   TEXT_EDITED
   TEXT_APPROVED
   POST_PUBLISHED
+  DEMAND_OPENED
+  PRODUCTION_CLOSED
+  POST_SCHEDULED
 }
 
 // Trilha de ações usada pelo painel admin: "o que aconteceu, quem fez, quando".
@@ -498,6 +515,66 @@ model ScheduledPost {
   @@index([clientId])
   @@index([status, scheduledAt])
   @@map("scheduled_posts")
+}
+
+// A "demanda" do mês: o mês de conteúdo como registro próprio.
+//
+// Antes disto o mês só existia indiretamente, através do Briefing — ou seja, nascia
+// quando o briefing era salvo. O nº da tarefa é pedido ao ABRIR o mês, antes de existir
+// briefing, então o mês precisou de um registro próprio.
+//
+// O título exibido é derivado, não guardado: "ETM | 92857 | Redes Sociais Setembro".
+// Guardar o texto montado deixaria títulos velhos para trás quando a sigla mudasse.
+model ContentDemand {
+  id         String @id @default(cuid())
+  clientId   String
+  period     String // "2026-09"
+  taskNumber String // nº da tarefa na ferramenta de gestão, ex "92857"
+
+  // Marco de "produção finalizada": é aqui que a numeração dos posts congela e a
+  // demanda passa a aparecer na tela de agendamento.
+  productionClosedAt DateTime?
+  closedById         String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User           @relation("DemandCreator", fields: [createdById], references: [id])
+  closedBy  User?          @relation("DemandCloser", fields: [closedById], references: [id])
+  schedules PostSchedule[]
+
+  @@unique([clientId, period])
+  @@map("content_demands")
+}
+
+// Registro MANUAL de que o post foi agendado no Business Suite.
+//
+// Não confundir com ScheduledPost: aquele é a fila de publicação pela ferramenta, que
+// está fora de escopo. Este não publica nada e não fala com o Meta — é o redator
+// anotando o que já agendou por fora. É justamente por ser manual que funciona: o Meta
+// não expõe a fila de agendamento do Business Suite por API (ver docs/aprendizados.txt).
+model PostSchedule {
+  id       String @id @default(cuid())
+  clientId String
+  demandId String
+  themeId  String @unique // um dia por post: arrastar move o registro, não duplica
+
+  scheduledFor DateTime // o dia em que o post foi agendado no Meta
+
+  registeredById String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  demand       ContentDemand @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  theme        ContentTheme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  registeredBy User          @relation("ScheduleRegistrar", fields: [registeredById], references: [id])
+
+  @@index([clientId, scheduledFor])
+  @@index([scheduledFor])
+  @@map("post_schedules")
 }
 
 // Notícias do mercado imobiliário (feed RSS externo), exibidas na tela inicial pra todo mundo.

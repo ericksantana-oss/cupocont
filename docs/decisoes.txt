@@ -4,6 +4,65 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+02/09/2026 — Demanda do mes, nomenclatura e registro de agendamento
+--------------------------------------------------------------------
+Tres coisas que so fazem sentido juntas:
+
+  1. Cliente ganhou SIGLA (Etmos -> ETM), unica.
+  2. Abrir o mes passou a pedir o Nº DA TAREFA da ferramenta de gestao (92857).
+  3. Nasceu a tela "Posts agendados": calendario com arrastar e soltar onde o
+     redator REGISTRA A MAO o que ja agendou no Business Suite.
+
+Nomenclatura acordada com a operacao:
+  demanda  ETM | 92857 | Redes Sociais Setembro
+  post     ETM | 92857 | Post 1 - Tema do post
+
+Os titulos sao DERIVADOS, nunca guardados. Se a sigla do cliente mudar, os
+titulos antigos acompanham. Guardar o texto montado deixaria demanda velha com
+sigla errada e ninguem saberia de onde veio.
+
+Por que o mes virou registro proprio (ContentDemand): o mes NAO existia como
+registro — nascia indiretamente quando o briefing era salvo (Briefing e unico
+por cliente+periodo), e "Abrir mes" era so navegacao. O nº da tarefa e pedido
+ao ABRIR, antes de existir briefing, entao precisou de lugar proprio.
+
+A demanda so vai para o agendamento depois de um botao "Finalizar producao",
+que exige todos os textos aprovados. Escolhido em vez de acontecer sozinho por
+um motivo concreto: e nesse momento que a NUMERACAO DOS POSTS CONGELA. O numero
+e o nome que a pessoa escreve no Meta; se ele mudasse de lugar depois, o
+agendamento registrado deixaria de bater com o que esta lá.
+
+Reabrir a producao NAO renumera o que ja tem numero. Post novo entra no fim.
+
+Um dia por post (PostSchedule unico por themeId): arrastar MOVE o registro em
+vez de duplicar. Verificado em producao — mover um post agendado deixou 2
+registros, nao 3. Em troca, nao da para registrar repostagem do mesmo conteudo;
+se isso aparecer, e mudanca de modelo, nao ajuste de tela.
+
+Duas telas, mesma logica: a do cliente (dentro do card) e o painel geral com
+filtro de um, varios ou todos os clientes. O filtro respeita accessFilterFor e
+descarta id que veio na URL e a pessoa nao pode ver — nao confia no que chega.
+
+Arrastar e soltar em HTML5 puro, sem biblioteca: as opcoes conhecidas pesam mais
+que a tela inteira. Como HTML5 drag nao funciona em toque, TODO cartao tem
+tambem um seletor de data que faz a mesma coisa por clique. Arrastar e o atalho,
+nao o unico caminho.
+
+Este item era a sugestao S1 do pendencias.txt ("campo de data prevista"), e e a
+resposta certa para o que o espelhamento do Meta tentou e nao conseguiu: o
+registro manual funciona justamente porque nao depende do Meta expor nada.
+
+Cuidado de nomenclatura: ScheduledPost (fila de publicacao pela ferramenta,
+fora de escopo) e PostSchedule (registro manual) sao coisas diferentes. Os
+rotulos da tela do cliente foram trocados para nao colidirem: o antigo "Ver
+posts agendados" virou "Ver fila de publicacao pela ferramenta".
+
+Siglas iniciais: derivadas das 3 primeiras letras na migration, editaveis. As
+que ficaram estranhas por acento ou nome composto e valem revisao manual:
+Grupo Paladio (GRU), Goes (GES), Vinculo (VNC), Lago/Patelli (LAG), Porta 8
+(POR), Stela Patelli (STE).
+
+
 01/09/2026 — Reconectar as contas nao era mais necessario (pendencia encerrada)
 --------------------------------------------------------------------------------
 A pendencia de reconectar as contas para ganhar pages_read_user_content estava

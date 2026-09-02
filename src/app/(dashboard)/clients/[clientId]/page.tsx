@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, GitBranch, Mail, Pencil } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, BookOpen, CalendarClock, CalendarDays, GitBranch, Mail, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireClientAccess } from "@/lib/auth/guards";
@@ -16,7 +16,17 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
   const client = await db.client.findUnique({ where: { id: clientId } });
   if (!client) notFound();
 
-  const periodos = await listClientPeriods(clientId);
+  const [periodos, demandas] = await Promise.all([
+    listClientPeriods(clientId),
+    db.contentDemand.findMany({
+      where: { clientId },
+      select: { period: true, taskNumber: true, productionClosedAt: true },
+    }),
+  ]);
+
+  // Nº da tarefa por mês, para o campo não pedir de novo o que já foi respondido.
+  const tarefaPorMes = Object.fromEntries(demandas.map((d) => [d.period, d.taskNumber]));
+  const demandaPorMes = new Map(demandas.map((d) => [d.period, d]));
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -48,6 +58,11 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
           Dashboard de resultados
           <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
         </Link>
+        <Link href={`/clients/${clientId}/agendamentos`} className="inline-flex items-center text-sm font-medium text-mata">
+          <CalendarDays className="mr-1.5 size-4" strokeWidth={1.5} />
+          Posts agendados (calendário do cliente)
+          <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
+        </Link>
       </div>
 
       <div className="mt-10">
@@ -59,7 +74,7 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
               eles sem que um interfira no outro.
             </p>
           </div>
-          <AbrirMes clientId={clientId} />
+          <AbrirMes clientId={clientId} tarefaPorMes={tarefaPorMes} />
         </div>
 
         {periodos.length > 0 && (
@@ -70,11 +85,21 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
                 href={`/clients/${clientId}/conteudo?period=${p.period}`}
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 hover:bg-bruma/10"
               >
-                <span className="min-w-[150px] font-medium">{periodLabel(p.period)}</span>
+                <span className="min-w-[150px] font-medium">
+                  {periodLabel(p.period)}
+                  {demandaPorMes.get(p.period) && (
+                    <span className="ml-2 font-mono text-xs text-tinta-3">
+                      #{demandaPorMes.get(p.period)!.taskNumber}
+                    </span>
+                  )}
+                </span>
                 <span className="flex-1 text-sm text-tinta-3">
                   {p.themesSelected} tema(s) selecionado(s) · {p.textsReady} texto(s) gerado(s) ·{" "}
                   {p.textsApproved} aprovado(s)
                 </span>
+                {demandaPorMes.get(p.period)?.productionClosedAt && (
+                  <Badge variant="default">Produção finalizada</Badge>
+                )}
                 <Badge variant={p.percent === 100 ? "default" : "secondary"}>{p.percent}%</Badge>
                 <ArrowRight className="size-4 text-tinta-3" strokeWidth={1.5} />
               </Link>
@@ -100,8 +125,8 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
         <ChoiceCard
           href={`/clients/${clientId}/posts/novo`}
           icon={<CalendarClock className="size-5 text-mata" strokeWidth={1.5} />}
-          title="Agendar post"
-          description="Publica agora ou agenda um post avulso no Instagram/Facebook, sem depender do fluxo de temas."
+          title="Publicar post avulso"
+          description="Publica pela própria ferramenta, sem passar pelo fluxo de temas. Não é o registro de agendamento — esse fica no calendário acima."
         />
       </div>
 
@@ -111,7 +136,7 @@ export default async function ClientSelectorPage({ params }: { params: Promise<{
           <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
         </Link>
         <Link href={`/clients/${clientId}/posts`} className="inline-flex items-center text-sm font-medium text-mata">
-          Ver posts agendados
+          Ver fila de publicação pela ferramenta
           <ArrowRight className="ml-1 size-4" strokeWidth={1.5} />
         </Link>
       </div>
