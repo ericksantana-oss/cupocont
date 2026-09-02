@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, CircleDashed, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CalendarDays, CircleDashed, PencilLine, ThumbsDown, ThumbsUp } from "lucide-react";
 import { db } from "@/lib/db";
 import { periodLabel } from "@/lib/periodo";
 import { tituloDoPost } from "@/lib/demanda";
@@ -60,12 +60,15 @@ export async function FeedbackTab({ clientId, period }: { clientId: string; peri
     <div>
       <div className="cartao flex flex-wrap items-center gap-x-6 gap-y-2 p-4 text-sm">
         <span className="text-tinta-3">
-          {resumo.aprovados} aprovado(s) · {resumo.reprovados} reprovado(s) · {resumo.semFeedback} sem
-          resposta
+          {resumo.aprovados} aprovado(s) · {resumo.ajustes} com ajuste · {resumo.reprovados} reprovado(s) ·{" "}
+          {resumo.semFeedback} sem resposta
         </span>
         {resumo.reprovados > 0 && (
+          <span className="text-tinta-2">Post reprovado não aparece no calendário de agendamento.</span>
+        )}
+        {resumo.ajustes > 0 && (
           <span className="text-tinta-2">
-            Post reprovado não aparece no calendário de agendamento.
+            Post com ajuste continua agendável — faça o ajuste antes de subir.
           </span>
         )}
         <Link
@@ -103,6 +106,16 @@ export async function FeedbackTab({ clientId, period }: { clientId: string; peri
                 <input
                   type="radio"
                   name={`verdict_${post.themeId}`}
+                  value="ADJUSTED"
+                  defaultChecked={post.verdict === "ADJUSTED"}
+                />
+                <PencilLine className="size-4 text-alerta" strokeWidth={1.5} />
+                Aprovado, mas pediu ajuste
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio"
+                  name={`verdict_${post.themeId}`}
                   value="REJECTED"
                   defaultChecked={post.verdict === "REJECTED"}
                 />
@@ -118,7 +131,7 @@ export async function FeedbackTab({ clientId, period }: { clientId: string; peri
               name={`comment_${post.themeId}`}
               defaultValue={post.comment ?? ""}
               rows={2}
-              placeholder="O que o cliente falou deste post? (o motivo da reprovação é o que mais ensina a IA)"
+              placeholder="O que o cliente falou deste post? O ajuste pedido e o motivo da reprovação são o que mais ensina a IA."
               className="mt-3 block w-full rounded-controle border border-linha bg-carta px-3 py-2 text-sm shadow-carta"
             />
 

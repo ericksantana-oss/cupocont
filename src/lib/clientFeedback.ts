@@ -12,7 +12,8 @@ import { db } from "@/lib/db";
 // Limites de quanto feedback entra no prompt. Não são estéticos: prompt é espaço finito
 // e caro, e feedback antigo de um cliente que já mudou de rumo atrapalha mais que ajuda.
 const MAX_REPROVADOS = 10;
-const MAX_APROVADOS_COM_COMENTARIO = 8;
+const MAX_AJUSTES = 10;
+const MAX_APROVADOS_COM_COMENTARIO = 6;
 
 // Feedback sem comentário de um post APROVADO não carrega informação além de "estava
 // bom", então nem entra na lista — só na contagem. Reprovado sem comentário entra, porque
@@ -24,13 +25,14 @@ export interface PostComFeedback {
   // O número congelado ao finalizar a produção, e não a posição na lista: usar a posição
   // faria esta tela mostrar um número diferente do que está no calendário.
   postIndex: number | null;
-  verdict: "APPROVED" | "REJECTED" | null;
+  verdict: "APPROVED" | "ADJUSTED" | "REJECTED" | null;
   comment: string | null;
 }
 
 export interface ResumoDeFeedback {
   total: number;
   aprovados: number;
+  ajustes: number;
   reprovados: number;
   semFeedback: number;
 }
@@ -39,6 +41,7 @@ export function resumirFeedback(posts: PostComFeedback[]): ResumoDeFeedback {
   return {
     total: posts.length,
     aprovados: posts.filter((p) => p.verdict === "APPROVED").length,
+    ajustes: posts.filter((p) => p.verdict === "ADJUSTED").length,
     reprovados: posts.filter((p) => p.verdict === "REJECTED").length,
     semFeedback: posts.filter((p) => p.verdict === null).length,
   };
@@ -61,11 +64,13 @@ export async function formatClientFeedback(clientId: string): Promise<string> {
   if (registros.length === 0) return "";
 
   const reprovados = registros.filter((r) => r.verdict === "REJECTED").slice(0, MAX_REPROVADOS);
+  const ajustes = registros.filter((r) => r.verdict === "ADJUSTED").slice(0, MAX_AJUSTES);
   const aprovadosComentados = registros
     .filter((r) => r.verdict === "APPROVED" && r.comment?.trim())
     .slice(0, MAX_APROVADOS_COM_COMENTARIO);
 
   const totalAprovados = registros.filter((r) => r.verdict === "APPROVED").length;
+  const totalAjustes = registros.filter((r) => r.verdict === "ADJUSTED").length;
   const totalReprovados = registros.filter((r) => r.verdict === "REJECTED").length;
 
   const linhas: string[] = [
@@ -74,7 +79,7 @@ export async function formatClientFeedback(clientId: string): Promise<string> {
     "nicho. Vale mais que qualquer inferência: use como a evidência mais forte que existe",
     "sobre o gosto dele.",
     "",
-    `Histórico: ${totalAprovados} post(s) aprovado(s) e ${totalReprovados} reprovado(s).`,
+    `Histórico: ${totalAprovados} aprovado(s) sem ressalva, ${totalAjustes} aprovado(s) com ajuste pedido e ${totalReprovados} reprovado(s).`,
   ];
 
   if (reprovados.length > 0) {
@@ -88,10 +93,24 @@ export async function formatClientFeedback(clientId: string): Promise<string> {
     );
   }
 
+  // Os ajustes vêm antes dos aprovados: "aprovou mas muda isso" é uma correção pedida
+  // pelo cliente, o sinal mais forte que existe sobre o que ele quer diferente.
+  if (ajustes.length > 0) {
+    linhas.push(
+      "",
+      "### Aprovados COM AJUSTE pedido pelo cliente — aplicar desde a primeira versão",
+      "O cliente aceitou o tema, mas mandou mudar algo. Não repetir o problema apontado.",
+      ...ajustes.map((r) => {
+        const pedido = r.comment?.trim() ? r.comment.trim() : "sem detalhe registrado";
+        return `- [${r.demand.period}] "${r.theme.title}" — ${pedido}`;
+      })
+    );
+  }
+
   if (aprovadosComentados.length > 0) {
     linhas.push(
       "",
-      "### Aprovados, mas com observação — tratar como correção a aplicar",
+      "### Aprovados sem ressalva, com observação solta",
       ...aprovadosComentados.map((r) => `- [${r.demand.period}] "${r.theme.title}" — ${r.comment!.trim()}`)
     );
   }

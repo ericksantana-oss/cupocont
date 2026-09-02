@@ -208,7 +208,7 @@ export async function salvarFeedbackDoMesAction(clientId: string, period: string
     const veredito = String(formData.get(`verdict_${tema.id}`) ?? "").trim();
     const comentario = String(formData.get(`comment_${tema.id}`) ?? "").trim() || null;
 
-    if (veredito !== "APPROVED" && veredito !== "REJECTED") {
+    if (veredito !== "APPROVED" && veredito !== "ADJUSTED" && veredito !== "REJECTED") {
       // Sem veredito: se havia feedback antes, apagar seria perder o que o cliente disse.
       // Só não cria nada de novo.
       continue;

@@ -33,10 +33,14 @@ enum TextStatus {
 }
 
 // Veredito do CLIENTE sobre um post, coletado depois da aprovação interna.
-// Dois estados de propósito: "aprovado com ajuste" caberia no comentário, e um terceiro
-// estado exigiria decidir se ele agenda ou não — nuance sem regra clara vira confusão.
+//
+// ADJUSTED é o caso mais comum na prática: o cliente aprova o post mas pede para mexer em
+// algo. Ele agenda normalmente, como aprovado — o que muda é o peso do comentário, que
+// aqui é uma correção pedida e não uma observação solta. É o feedback de maior valor para
+// as gerações seguintes.
 enum ClientVerdict {
   APPROVED
+  ADJUSTED
   REJECTED
 }
 
