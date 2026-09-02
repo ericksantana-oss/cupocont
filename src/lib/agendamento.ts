@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { tituloDoPost } from "@/lib/demanda";
-import { lerDemanda, listarDemandasParaAgendar } from "@/lib/contentDemand";
+import { listarDemandasParaAgendar } from "@/lib/contentDemand";
 
 // Leitura do calendário de agendamentos.
 //
@@ -14,6 +14,7 @@ export interface PostAgendado {
   clientName: string;
   demandId: string;
   titulo: string;
+  rotuloCurto: string;
   themeTitle: string;
   postIndex: number | null;
   period: string;
@@ -35,6 +36,13 @@ export function chaveDoDia(data: Date): string {
 export function diaParaData(chave: string): Date {
   const [ano, mes, dia] = chave.split("-").map(Number);
   return new Date(ano, mes - 1, dia, 12, 0, 0, 0);
+}
+
+// Rótulo mínimo que ainda identifica o post numa célula de ~60px. Sem isto, "truncate"
+// no título completo não deixava NADA visível dentro do dia — verificado na tela.
+export function rotuloCurto(acronym: string | null, postIndex: number | null): string {
+  const sigla = acronym ?? "???";
+  return postIndex === null ? sigla : `${sigla} Post ${postIndex}`;
 }
 
 export async function listarAgendamentos(
@@ -71,6 +79,7 @@ export async function listarAgendamentos(
       { acronym: r.client.acronym, taskNumber: r.demand.taskNumber },
       { postIndex: r.theme.postIndex, title: r.theme.title }
     ),
+    rotuloCurto: rotuloCurto(r.client.acronym, r.theme.postIndex),
     themeTitle: r.theme.title,
     postIndex: r.theme.postIndex,
     period: r.demand.period,
@@ -106,6 +115,8 @@ export interface Calendario {
 export interface PostParaCalendario {
   themeId: string;
   titulo: string;
+  /** O que caber na célula do calendário: "ETM Post 1". O título inteiro fica no tooltip. */
+  rotuloCurto: string;
   clientName: string;
   clientId: string;
   dia: string | null;
@@ -118,16 +129,34 @@ export async function montarCalendario(clientIds: string[], period: string): Pro
   // já passou continua aparecendo — some da tela seria a pior forma de esquecer.
   const relevantes = fechadas.filter((d) => d.period <= period);
 
-  const completas = await Promise.all(relevantes.map((d) => lerDemanda(d.clientId, d.period)));
+  // Uma consulta para todos os meses envolvidos. Chamar lerDemanda por demanda era N+1
+  // e chegou a deixar o botão "Finalizar produção" em 10s, porque toda ação revalida
+  // esta tela.
+  const briefings =
+    relevantes.length === 0
+      ? []
+      : await db.briefing.findMany({
+          where: { OR: relevantes.map((d) => ({ clientId: d.clientId, period: d.period })) },
+          select: {
+            clientId: true,
+            period: true,
+            themes: {
+              where: { status: "SELECTED", postSchedule: null },
+              orderBy: { postIndex: "asc" },
+              select: { id: true, title: true, postIndex: true },
+            },
+          },
+        });
+
+  const porMes = new Map(briefings.map((b) => [`${b.clientId}|${b.period}`, b.themes]));
 
   const naoAgendados: PostParaCalendario[] = [];
-  for (const demanda of completas) {
-    if (!demanda) continue;
-    for (const post of demanda.posts) {
-      if (post.agendadoEm !== null) continue;
+  for (const demanda of relevantes) {
+    for (const tema of porMes.get(`${demanda.clientId}|${demanda.period}`) ?? []) {
       naoAgendados.push({
-        themeId: post.themeId,
-        titulo: post.titulo,
+        themeId: tema.id,
+        titulo: tituloDoPost(demanda, { postIndex: tema.postIndex, title: tema.title }),
+        rotuloCurto: rotuloCurto(demanda.acronym, tema.postIndex),
         clientName: demanda.clientName,
         clientId: demanda.clientId,
         dia: null,
@@ -145,6 +174,7 @@ export async function montarCalendario(clientIds: string[], period: string): Pro
       ...agendados.map((a) => ({
         themeId: a.themeId,
         titulo: a.titulo,
+        rotuloCurto: a.rotuloCurto,
         clientName: a.clientName,
         clientId: a.clientId,
         dia: chaveDoDia(a.scheduledFor),

@@ -120,6 +120,10 @@ export interface DemandaResumida {
   id: string;
   clientId: string;
   clientName: string;
+  // Sigla e nº da tarefa vão junto para quem precisa montar título de post sem uma
+  // segunda consulta ao cliente e à demanda.
+  acronym: string | null;
+  taskNumber: string;
   period: string;
   titulo: string;
   totalDePosts: number;
@@ -162,6 +166,8 @@ export async function listarDemandasParaAgendar(clientIds: string[]): Promise<De
       id: demanda.id,
       clientId: demanda.clientId,
       clientName: demanda.client.name,
+      acronym: demanda.client.acronym,
+      taskNumber: demanda.taskNumber,
       period: demanda.period,
       titulo: tituloDaDemanda({
         acronym: demanda.client.acronym,

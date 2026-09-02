@@ -17,6 +17,8 @@ const DIAS_DA_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 export interface PostParaAgendar {
   themeId: string;
   titulo: string;
+  /** "ETM Post 1" — o que ainda se lê numa célula de dia, que tem ~60px. */
+  rotuloCurto: string;
   clientName: string;
   clientId: string;
   dia: string | null; // "2026-09-14" quando já tem agendamento registrado
@@ -77,7 +79,14 @@ export function CalendarioAgendamento({
     return (
       <div
         draggable={!pendente}
-        onDragStart={() => setArrastando(post.themeId)}
+        onDragStart={(e) => {
+          // setData é obrigatório: sem ele o Chrome e o Firefox não INICIAM o arraste,
+          // e o cartão simplesmente não sai do lugar. Foi o que aconteceu na primeira
+          // versão desta tela.
+          e.dataTransfer.setData("text/plain", post.themeId);
+          e.dataTransfer.effectAllowed = "move";
+          setArrastando(post.themeId);
+        }}
         onDragEnd={() => {
           setArrastando(null);
           setDiaAlvo(null);
@@ -89,7 +98,11 @@ export function CalendarioAgendamento({
       >
         <GripVertical className="mt-0.5 size-3 shrink-0 text-tinta-3" strokeWidth={1.5} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-medium leading-tight">{post.titulo}</p>
+          {/* Dentro do dia sobra pouco espaço, então vai o rótulo curto. O título
+              inteiro fica no title do cartão e na lista da esquerda. */}
+          <p className="truncate text-[11px] font-medium leading-tight">
+            {compacto ? post.rotuloCurto : post.titulo}
+          </p>
           {!compacto && <p className="mt-0.5 truncate text-[10px] text-tinta-3">{post.clientName}</p>}
         </div>
         {post.dia && (
@@ -184,13 +197,18 @@ export function CalendarioAgendamento({
                   key={dia}
                   onDragOver={(e) => {
                     e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
                     setDiaAlvo(chave);
                   }}
                   onDragLeave={() => setDiaAlvo((atual) => (atual === chave ? null : atual))}
                   onDrop={(e) => {
                     e.preventDefault();
                     setDiaAlvo(null);
-                    if (arrastando) mover(arrastando, chave);
+                    // O id vem do dataTransfer, com o estado como reserva: se o React
+                    // tiver remontado o cartão no meio do arraste, o dataTransfer ainda
+                    // carrega quem está sendo movido.
+                    const id = e.dataTransfer.getData("text/plain") || arrastando;
+                    if (id) mover(id, chave);
                     setArrastando(null);
                   }}
                   className={`min-h-[92px] rounded-controle border p-1.5 transition-colors ${

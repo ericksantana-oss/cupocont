@@ -42,12 +42,12 @@ export async function DemandaCard({ clientId, period }: { clientId: string; peri
 
   return (
     <div className="cartao mt-6 p-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <p className="rotulo">Demanda</p>
-          <p className="mt-0.5 truncate font-mono text-sm">{titulo}</p>
-        </div>
+      {/* Em linha própria de propósito: disputando espaço com os botões, o título ficava
+          truncado em "TES..." — e ele é justamente o que a pessoa vem conferir aqui. */}
+      <p className="rotulo">Demanda</p>
+      <p className="mt-0.5 break-all font-mono text-sm">{titulo}</p>
 
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-linha-2 pt-3">
         {finalizada ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-sm text-mata">
