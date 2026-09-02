@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarX, Clock, Newspaper, Plus, Search, Users2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { CupolaMark } from "@/components/CupolaMark";
 import { getSquadLogoPublicUrl } from "@/lib/storage";
 import { periodLabel } from "@/lib/periodo";
-import { listAccessibleClients, listRecentClients, listPendingApprovals, listMarketNews, listAvisosDeConexao } from "./actions";
+import {
+  listAccessibleClients,
+  listRecentClients,
+  listPendingApprovals,
+  listMarketNews,
+  listAvisosDeConexao,
+  listAlertasDeCobertura,
+} from "./actions";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -27,16 +34,18 @@ export default async function ClientsPage({
 
   const showSquadPicker = (user.role === "ADMIN" || user.role === "INTERN") && !q;
 
-  const [clients, recentClients, pendingApprovals, marketNews, avisosDeConexao, squads] = await Promise.all([
+  const [clients, recentClients, pendingApprovals, marketNews, avisosDeConexao, alertasDeCobertura, squads] =
+    await Promise.all([
     listAccessibleClients(q),
     listRecentClients(),
     listPendingApprovals(),
     listMarketNews(),
     listAvisosDeConexao(),
-    showSquadPicker
-      ? db.squad.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { clients: true } } } })
-      : Promise.resolve([]),
-  ]);
+    listAlertasDeCobertura(),
+      showSquadPicker
+        ? db.squad.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { clients: true } } } })
+        : Promise.resolve([]),
+    ]);
   const firstName = user.name.split(" ")[0];
 
   return (
@@ -63,6 +72,30 @@ export default async function ClientsPage({
       </div>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
+        {alertasDeCobertura.length > 0 && !q && (
+          <div className="mb-10">
+            <h2 className="rotulo">Agendamento acabando ({alertasDeCobertura.length})</h2>
+            <div className="cartao mt-3 divide-y divide-linha-2">
+              {alertasDeCobertura.map((alerta) => (
+                <Link
+                  key={alerta.clientId}
+                  href={`/clients/${alerta.clientId}/agendamentos`}
+                  className="flex flex-wrap items-center gap-3 p-4 hover:bg-bruma/10"
+                >
+                  <CalendarX
+                    className={`size-4 shrink-0 ${
+                      alerta.nivel === "sem-cobertura" ? "text-risco" : "text-alerta"
+                    }`}
+                    strokeWidth={1.5}
+                  />
+                  <span className="flex-1 text-sm">{alerta.mensagem}</span>
+                  <ArrowRight className="size-4 shrink-0 text-tinta-3" strokeWidth={1.5} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {avisosDeConexao.length > 0 && !q && (
           <div className="mb-10">
             <h2 className="rotulo">Conexão com o Meta</h2>

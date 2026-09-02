@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser, requireAdmin } from "@/lib/auth/guards";
 import { listarConexoesComAviso, type ConexaoComAviso } from "@/lib/meta/tokenHealth";
 import { validarSigla } from "@/lib/demanda";
+import { listarAlertasDeCobertura, type AlertaDeCobertura } from "@/lib/coberturaDeAgendamento";
 
 export async function createClientAction(formData: FormData) {
   await requireAdmin();
@@ -129,6 +130,18 @@ export async function listAvisosDeConexao(): Promise<ConexaoComAviso[]> {
   const user = await requireUser();
   const clients = await db.client.findMany({ where: accessFilterFor(user), select: { id: true } });
   return listarConexoesComAviso(clients.map((c) => c.id));
+}
+
+// Até quando cada cliente tem post agendado. Usa o MESMO accessFilterFor do resto da
+// ferramenta: admin e estagiário veem todos os clientes, redator vê os do próprio squad
+// mais os liberados via ClientAccess.
+export async function listAlertasDeCobertura(): Promise<AlertaDeCobertura[]> {
+  const user = await requireUser();
+  const clientes = await db.client.findMany({
+    where: accessFilterFor(user),
+    select: { id: true, name: true },
+  });
+  return listarAlertasDeCobertura(clientes);
 }
 
 export async function listRecentClients(squadId?: string) {
