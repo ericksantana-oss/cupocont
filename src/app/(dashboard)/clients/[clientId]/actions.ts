@@ -12,7 +12,14 @@ import type { Keyword } from "@/lib/keywords/provider";
 import { buildClientKnowledgeContext, briefingSearchQuery } from "@/lib/ai/contextBuilder";
 import { generateThemes } from "@/lib/ai/prompts/generateThemes";
 import { generateThemePiece } from "@/lib/ai/prompts/generateText";
-import { normalizeSlideRoles, parseSlides, type PieceFormat, type Slide } from "@/lib/contentPiece";
+import {
+  derivarStories,
+  normalizeSlideRoles,
+  parseSlides,
+  MAX_STORIES,
+  type PieceFormat,
+  type Slide,
+} from "@/lib/contentPiece";
 import { getTopMedia, getProfileMetrics } from "@/lib/meta/graph";
 import { verificarConta } from "@/lib/meta/tokenHealth";
 import { indexarTemas } from "@/lib/themeSimilarity";
@@ -382,6 +389,11 @@ export async function generateTextAction(clientId: string, themeId: string, form
       pieceFormat,
       imageText: piece.imageText,
       slides: piece.slides.length > 0 ? (piece.slides as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+      // Nascem junto, como cópia da arte. Sem chamada de IA: é o mesmo texto.
+      stories: (() => {
+        const stories = derivarStories(pieceFormat, piece.imageText, piece.slides);
+        return stories.length > 0 ? (stories as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
+      })(),
     },
   });
 
@@ -416,6 +428,15 @@ export async function editTextAction(clientId: string, textId: string, formData:
     slides = normalizeSlideRoles(enviados.map((text) => ({ role: "INTERNO" as const, text })));
   }
 
+  // Stories vêm inteiros do formulário: o que a pessoa apagou na tela não é enviado, e é
+  // assim que apagar funciona. Não se re-deriva da arte aqui — isso desfaria a edição
+  // manual, que é justamente o ponto de poder condensar 5 cards em 3 stories.
+  const stories = formData
+    .getAll("storyText")
+    .map((v) => String(v).trim())
+    .filter((t) => t.length > 0)
+    .slice(0, MAX_STORIES);
+
   const text = await db.generatedText.update({
     where: { id: textId },
     data: {
@@ -423,6 +444,7 @@ export async function editTextAction(clientId: string, textId: string, formData:
       editedById: user.id,
       imageText,
       slides: slides.length > 0 ? (slides as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+      stories: stories.length > 0 ? (stories as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
     },
     include: { theme: { include: { briefing: true } } },
   });

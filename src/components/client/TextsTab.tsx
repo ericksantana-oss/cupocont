@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PieceFieldsEditor } from "@/components/client/PieceFieldsEditor";
 import { BotaoGerar } from "@/components/client/BotaoGerar";
-import { PIECE_FORMAT_LABEL, parseSlides, type PieceFormat } from "@/lib/contentPiece";
+import { PIECE_FORMAT_LABEL, parseSlides, parseStories, type PieceFormat } from "@/lib/contentPiece";
 import {
   generateTextAction,
   editTextAction,
@@ -106,6 +106,7 @@ function ThemeTextCard({
       pieceFormat: string | null;
       imageText: string | null;
       slides: unknown;
+    stories: unknown;
       scheduledPosts: {
         id: string;
         channel: string;
@@ -190,6 +191,7 @@ function EditableText({
     pieceFormat: string | null;
     imageText: string | null;
     slides: unknown;
+    stories: unknown;
     scheduledPosts?: {
       id: string;
       channel: string;
@@ -217,6 +219,7 @@ function EditableText({
         caption={text.content}
         imageText={text.imageText}
         slides={parseSlides(text.slides)}
+        stories={parseStories(text.stories)}
       />
 
       <div className="rounded-controle border border-linha p-4">

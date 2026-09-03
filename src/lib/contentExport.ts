@@ -1,5 +1,11 @@
 import { periodLabel } from "@/lib/periodo";
-import { PIECE_FORMAT_LABEL, SLIDE_ROLE_LABEL, parseSlides, type PieceFormat } from "@/lib/contentPiece";
+import {
+  PIECE_FORMAT_LABEL,
+  SLIDE_ROLE_LABEL,
+  parseSlides,
+  parseStories,
+  type PieceFormat,
+} from "@/lib/contentPiece";
 import type { Keyword } from "@/lib/keywords/provider";
 
 export type ExportTheme = {
@@ -11,6 +17,7 @@ export type ExportTheme = {
     pieceFormat: string | null;
     imageText: string | null;
     slides: unknown;
+    stories: unknown;
   } | null;
 };
 
@@ -85,6 +92,14 @@ export function buildContentMarkdown(data: ContentExport): string {
     if (slides.length > 0) {
       add("**Cards**", "");
       slides.forEach((slide, j) => add(`${j + 1}. **${SLIDE_ROLE_LABEL[slide.role]}** — ${slide.text}`));
+      add("");
+    }
+
+    // Os stories entram no pacote de entrega: são material do design como qualquer card.
+    const stories = parseStories(theme.text.stories);
+    if (stories.length > 0) {
+      add(`**Stories (${stories.length})**`, "");
+      stories.forEach((texto, j) => add(`${j + 1}. ${texto}`));
       add("");
     }
   });

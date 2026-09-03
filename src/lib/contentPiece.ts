@@ -62,3 +62,34 @@ export function normalizeSlideRoles(slides: Slide[]): Slide[] {
 export function isOverLimit(slide: Slide): boolean {
   return slide.text.length > slideLimit(slide.role);
 }
+
+// ---------------------------------------------------------------------------
+// Stories
+//
+// O conteúdo dos stories é o MESMO texto que vai na arte: um story por card do
+// carrossel, ou um só quando a peça é card único. Por isso não há chamada de IA aqui —
+// é cópia, o que também mantém isto fora da cota diária do Gemini.
+//
+// Depois de derivado, vira material editável: o redator ajusta o texto e apaga os que
+// não quiser, tipicamente para condensar um carrossel de 5 em 3 stories.
+
+export const MAX_STORIES = MAX_SLIDES;
+
+export function parseStories(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string").slice(0, MAX_STORIES);
+}
+
+// Deriva a sequência de stories a partir dos campos de arte da peça.
+// Descarta texto vazio: card em branco não vira story em branco.
+export function derivarStories(
+  pieceFormat: PieceFormat | null,
+  imageText: string | null,
+  slides: Slide[]
+): string[] {
+  if (pieceFormat === "CARROSSEL") {
+    return slides.map((s) => s.text.trim()).filter(Boolean).slice(0, MAX_STORIES);
+  }
+  const texto = (imageText ?? "").trim();
+  return texto ? [texto] : [];
+}

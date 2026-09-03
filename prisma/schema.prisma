@@ -375,6 +375,11 @@ model GeneratedText {
   pieceFormat PieceFormat? // escolhido pelo redator antes de gerar
   imageText   String? // texto que vai na arte do card único (máx 150)
   slides      Json? // carrossel: [{ role: "CAPA"|"INTERNO"|"CTA", text }] na ordem de exibição
+  // Stories: ["texto do story 1", ...] na ordem. Nasce como cópia do texto da arte — um
+  // story por card do carrossel, ou um só no card único — e depois é editável e
+  // apagável à mão. Fica aqui, e não em tabela própria, porque pertence a ESTA versão do
+  // texto: gerar nova versão refaz a arte, e os stories têm que acompanhar.
+  stories     Json?
 
   theme          ContentTheme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
   editedBy       User            @relation("TextEditor", fields: [editedById], references: [id])
