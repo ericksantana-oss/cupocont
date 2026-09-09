@@ -4,6 +4,56 @@ Ordem cronologica inversa: o mais recente primeiro.
 Cada entrada: o que foi decidido, por que, e o que foi descartado junto.
 
 
+09/09/2026 — IA volta para a Anthropic (Claude), e o custo medido
+-----------------------------------------------------------------
+Reversao da troca de 25/08/2026. Toda geracao passa por askAI() em lib/ai/llm.ts,
+entao a volta mexeu num arquivo so mais o .env. @google/genai saiu do projeto,
+@anthropic-ai/sdk voltou.
+
+Motivo da volta: decisao do Erick. O motivo da ida — conta sem saldo — nao vale
+mais: a chave nova responde e tem credito.
+
+Modelo padrao: claude-opus-5, configuravel por CLAUDE_MODEL.
+
+CUSTO, MEDIDO e nao estimado (09/09/2026, geracao real de 20 temas com o contexto
+do Etmos: 8.116 tokens de entrada, 2.895 de saida):
+
+  US$ 0,12 por chamada
+  US$ 2,95 por cliente/mes  (24 chamadas: 20 temas + 12 posts + 2 e-mails)
+  US$ 74 por mes para 25 clientes
+
+Comparacao honesta: o plano pago do Gemini custaria US$ 8 a 12/mes para os mesmos
+25 clientes. Opus 5 e ~6x a 9x mais caro. Em claude-sonnet-5 cai para ~US$ 27/mes.
+A escolha do modelo e de negocio, nao tecnica — o codigo aceita os dois por
+variavel de ambiente.
+
+O system prompt vai com cache_control: o contexto do cliente, as regras fixas e o
+feedback repetem em toda geracao do mes e sao a parte estavel do prefixo. A
+primeira chamada paga a escrita do cache (1,25x); as seguintes leem a 0,1x.
+
+LATENCIA: ~35s para os 20 temas, medida 5 vezes (33,3s a 37,2s). Cabe no orcamento
+de 55s do codigo, mas deixa pouca folga para o limite de 60s da funcao na Vercel
+Hobby. Se comecar a estourar, os remedios sao CLAUDE_EFFORT=medium ou subir o
+plano — nao aumentar o timeout, que a plataforma ignora.
+
+Descartado: streaming. O resultado e consumido de uma vez (JSON inteiro), nao
+token a token, e streaming nao muda o limite de tempo da plataforma.
+
+
+09/09/2026 — Temas fechados em 20, no prompt E no codigo
+----------------------------------------------------------
+O prompt pedia "no MINIMO 20". O Claude devolveu 22 e 24 nas primeiras geracoes —
+correto pelo texto, mas nao era o que a operacao queria.
+
+Agora pede EXATAMENTE 20 e o parse corta em 20. Os dois leem a mesma constante
+TOTAL_DE_TEMAS.
+
+Por que cortar no codigo tambem: pedido de quantidade exata e instrucao, nao
+garantia. Cortar pelo fim e seguro porque os temas sugeridos pelo redator vem
+PRIMEIRO — verificado: as duas sugestoes voltaram nas posicoes 1 e 2 e o total
+fechou em 20.
+
+
 02/09/2026 — Alerta de cobertura de agendamento (o de agosto, de volta)
 ------------------------------------------------------------------------
 A tela inicial passa a avisar quando um cliente esta ficando sem post no ar.

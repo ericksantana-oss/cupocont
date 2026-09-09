@@ -1,114 +1,169 @@
-import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 
-let client: GoogleGenAI | null = null;
+// Porta única de entrada da IA na ferramenta. Toda geração — temas, textos, e-mails e a
+// leitura do dashboard — passa por askAI(). É por isso que trocar de provedor mexe só
+// neste arquivo: já foi Anthropic, virou Gemini em 25/08/2026 e voltou em 09/09/2026.
+// Ver docs/decisoes.txt.
 
-function getClient(): GoogleGenAI {
+let client: Anthropic | null = null;
+
+function getClient(): Anthropic {
   if (!client) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Variável de ambiente GEMINI_API_KEY não configurada.");
-    client = new GoogleGenAI({ apiKey });
+    // O SDK lê ANTHROPIC_API_KEY do ambiente sozinho. A checagem explícita existe para o
+    // erro dizer o que fazer, em vez de estourar um 401 genérico na cara do redator.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error("Variável de ambiente ANTHROPIC_API_KEY não configurada.");
+    }
+    // maxRetries: 0 é obrigatório aqui. O SDK repete sozinho 2 vezes por padrão, e como
+    // este arquivo tem o próprio laço de retentativas, as duas camadas se MULTIPLICAM:
+    // medido em 09/09/2026, uma chamada que leva 35s levou 805s por causa disso. O laço
+    // daqui fica porque ele sabe distinguir erro que melhora esperando de erro que não.
+    client = new Anthropic({ maxRetries: 0 });
   }
   return client;
 }
 
-// Cuidado ao trocar de modelo — testado em 25/08/2026 nesta chave:
-//   gemini-3.7-flash e gemini-flash-latest: aparecem na listagem de modelos mas PENDURAM,
-//     sem responder nem devolver erro.
-//   gemini-2.5-flash: responde 404 para chaves novas.
-//   gemini-3.6-flash: funciona, mas a cota gratuita é de apenas 20 chamadas por DIA — não
-//     cobre nem um mês de um cliente, que consome 24.
-// Cota gratuita maior costuma estar nos modelos de geração anterior e nos "lite".
-export const AI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+export const AI_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5";
 
-// Folgado de propósito: os modelos Gemini 3.x gastam parte da saída "pensando" antes
-// de responder, e a geração de 20 temas em JSON é o pedido mais longo da ferramenta.
-// Teto baixo aqui trunca o JSON no meio e quebra a leitura da resposta.
-const MAX_OUTPUT_TOKENS = 8192;
+// Esforço de raciocínio. "high" é o padrão da API e o ponto de equilíbrio para conteúdo
+// editorial; "medium" e "low" existem como alívio de custo e de tempo, se preciso.
+// Configurável por ambiente porque custo e o limite de 60s da Vercel são preocupações
+// vivas neste projeto (ver docs/pendencias.txt).
+const AI_EFFORT = process.env.CLAUDE_EFFORT || "high";
+
+// Folgado de propósito: a geração de 20 temas em JSON é o pedido mais longo da
+// ferramenta, e com raciocínio ligado os tokens de pensamento também contam aqui. Teto
+// baixo trunca o JSON no meio e quebra a leitura da resposta.
+const MAX_OUTPUT_TOKENS = 16_000;
 
 const MAX_TENTATIVAS = 4;
 
-// Sem isso, uma chamada pendurada trava a ação do redator até a plataforma matar a
-// função. Já vimos modelo que não responde nem devolve erro, então não é hipotético.
-const TIMEOUT_MS = 120_000;
+// Orçamento TOTAL de tempo, não por tentativa. Menor que o limite da plataforma de
+// propósito: na Vercel Hobby a função morre em 60s e devolve um 504 sem explicação;
+// estourando antes, o redator recebe uma mensagem que diz o que aconteceu.
+//
+// Ser total, e não por tentativa, é o que impede o laço de prometer o que a plataforma
+// não deixa cumprir. Medido em 09/09/2026: uma geração de 20 temas leva ~35s, então
+// dentro de 55s não cabe uma segunda tentativa longa — e o laço respeita isso em vez de
+// tentar e ser morto no meio. Retentativa aqui serve para falha RÁPIDA (429 ou 5xx que
+// voltam em segundos), que é justamente quando ela ajuda.
+const ORCAMENTO_MS = Number(process.env.CLAUDE_TIMEOUT_MS ?? 55_000);
 
-// Cota diária esgotada não melhora com espera: insistir só queima mais de um minuto
-// antes de falhar igual. Vale distinguir para avisar o redator do que está acontecendo.
-function ehCotaDiariaEsgotada(mensagem: string): boolean {
-  return /PerDay|RequestsPerDay|per day/i.test(mensagem);
+// Abaixo disto não vale tentar de novo: a chamada seria morta antes de responder.
+const MINIMO_PARA_TENTAR_MS = 12_000;
+
+// ---------------------------------------------------------------------------
+// Classificação de erro: o que vale reesperar e o que não vale.
+//
+// A distinção não é estética. Insistir num erro permanente queima mais de um minuto do
+// redator para falhar igual no fim — foi a lição que a cota diária do Gemini ensinou.
+
+// O SDK diz "Request timed out" — sem o "timed out" aqui a mensagem amigável não
+// aparece e o redator recebe o erro cru. Foi o que aconteceu no primeiro teste.
+const PADRAO_DE_TIMEOUT = /abort|timed out|timeout|ECONNRESET|ETIMEDOUT/i;
+
+function ehSemSaldo(mensagem: string): boolean {
+  return /credit balance|billing|insufficient|quota/i.test(mensagem);
 }
 
-function ehLimitePorMinuto(mensagem: string): boolean {
-  return /\b429\b|RESOURCE_EXHAUSTED|rate limit/i.test(mensagem);
-}
-
-function ehErroTemporario(mensagem: string): boolean {
-  if (ehCotaDiariaEsgotada(mensagem)) return false;
-  // 429 por minuto: a janela vira em segundos, vale esperar. 5xx: instabilidade do Google.
-  return /\b(500|502|503|504)\b|UNAVAILABLE|overloaded|abort/i.test(mensagem) || ehLimitePorMinuto(mensagem);
-}
-
-// Traduz o erro cru da API para algo que o redator entenda e saiba o que fazer.
-function mensagemParaOUsuario(bruto: string): string {
-  if (ehCotaDiariaEsgotada(bruto)) {
-    return "A cota diária gratuita da IA acabou. Ela é renovada no dia seguinte — ou o plano pago do Gemini remove esse limite.";
+function ehErroTemporario(err: unknown): boolean {
+  if (err instanceof Anthropic.RateLimitError) return true;
+  if (err instanceof Anthropic.APIConnectionError) return true;
+  if (err instanceof Anthropic.APIError && typeof err.status === "number" && err.status >= 500) {
+    return true;
   }
-  if (ehLimitePorMinuto(bruto)) {
-    return "A IA recusou por limite de chamadas por minuto. Espere um minuto e tente de novo.";
+  const mensagem = err instanceof Error ? err.message : String(err);
+  // Timeout do nosso AbortController: a chamada seguinte pode pegar o modelo menos
+  // ocupado. Não confundir com sem saldo, que nunca melhora esperando.
+  if (ehSemSaldo(mensagem)) return false;
+  return PADRAO_DE_TIMEOUT.test(mensagem);
+}
+
+// Traduz o erro cru para algo que o redator entenda e saiba o que fazer.
+function mensagemParaOUsuario(err: unknown): string {
+  const bruto = err instanceof Error ? err.message : String(err);
+
+  if (err instanceof Anthropic.AuthenticationError) {
+    return "A chave da API da Anthropic foi recusada. Um admin precisa conferir ANTHROPIC_API_KEY.";
   }
-  if (/abort/i.test(bruto)) {
-    return "A IA não respondeu no tempo esperado. Tente de novo.";
+  if (ehSemSaldo(bruto)) {
+    return "A conta da Anthropic está sem saldo. É preciso adicionar crédito no console da Anthropic para a IA voltar a funcionar.";
+  }
+  if (err instanceof Anthropic.RateLimitError) {
+    return "A IA recusou por limite de chamadas. Espere um minuto e tente de novo.";
+  }
+  if (PADRAO_DE_TIMEOUT.test(bruto)) {
+    return "A IA não respondeu no tempo esperado. Tente de novo — se repetir, avise um admin.";
   }
   return `Falha ao gerar conteúdo com a IA: ${bruto}`;
 }
 
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Chama o modelo e devolve o texto puro da resposta. Mensagem única (system + user),
-// sem streaming — suficiente porque o resultado é consumido de uma vez, não token a token.
+// ---------------------------------------------------------------------------
+
+// Chama o modelo e devolve o texto puro da resposta. Mensagem única (system + user), sem
+// streaming — suficiente porque o resultado é consumido de uma vez, não token a token.
 export async function askAI(system: string, userMessage: string): Promise<string> {
   let ultimoErro: unknown;
+  const prazo = Date.now() + ORCAMENTO_MS;
+  const restante = () => prazo - Date.now();
 
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
     try {
-      const controle = new AbortController();
-      const relogio = setTimeout(() => controle.abort(), TIMEOUT_MS);
-
-      let response;
-      try {
-        response = await getClient().models.generateContent({
+      const resposta = await getClient().messages.create(
+        {
           model: AI_MODEL,
-          contents: userMessage,
-          config: {
-            systemInstruction: system,
-            maxOutputTokens: MAX_OUTPUT_TOKENS,
-            abortSignal: controle.signal,
-          },
-        });
-      } finally {
-        clearTimeout(relogio);
+          max_tokens: MAX_OUTPUT_TOKENS,
+          // Raciocínio adaptativo: o modelo decide quanto pensar. A profundidade é
+          // controlada por effort, não por um teto fixo de tokens de pensamento.
+          thinking: { type: "adaptive" },
+          output_config: { effort: AI_EFFORT as "low" | "medium" | "high" | "xhigh" | "max" },
+          // O system vai cacheado: ele carrega o contexto do cliente, as regras fixas e o
+          // feedback, que repetem em toda geração do mês. O cache é prefixo, e aqui o
+          // prefixo é justamente a parte estável.
+          system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+          messages: [{ role: "user", content: userMessage }],
+        },
+        { timeout: restante() }
+      );
+
+      // stop_reason antes de content, sempre: uma recusa vem com HTTP 200 e conteúdo
+      // vazio, e ler o texto direto transformaria isso num erro de JSON confuso.
+      if (resposta.stop_reason === "refusal") {
+        const categoria = resposta.stop_details?.category ?? "não informada";
+        throw new Error(
+          `A IA recusou atender a este pedido (categoria: ${categoria}). Revise o briefing e o contexto do cliente.`
+        );
       }
 
-      const text = response.text;
-      if (text && text.trim().length > 0) return text;
+      if (resposta.stop_reason === "max_tokens") {
+        throw new Error(
+          "A resposta da IA foi cortada por tamanho antes de terminar. Gere de novo; se repetir, o pedido precisa ser dividido."
+        );
+      }
 
-      // Resposta vazia tem causa: cortada no limite de tokens ou barrada por filtro de
-      // conteúdo. Sem isso, o erro só aparece depois, como falha de leitura do JSON.
-      const motivo = response.candidates?.[0]?.finishReason ?? "desconhecido";
-      throw new Error(`A IA retornou resposta vazia (motivo: ${motivo}).`);
+      const texto = resposta.content
+        .filter((bloco): bloco is Anthropic.TextBlock => bloco.type === "text")
+        .map((bloco) => bloco.text)
+        .join("");
+
+      if (texto.trim().length > 0) return texto;
+
+      throw new Error(`A IA retornou resposta vazia (motivo: ${resposta.stop_reason ?? "desconhecido"}).`);
     } catch (err) {
       ultimoErro = err;
-      const mensagem = err instanceof Error ? err.message : String(err);
 
-      if (tentativa < MAX_TENTATIVAS && ehErroTemporario(mensagem)) {
-        // A cota por minuto do plano gratuito é curta: esperar 2s não resolve, precisa
-        // dar tempo da janela virar.
-        await espera(5000 * 3 ** (tentativa - 1)); // 5s, 15s, 45s
+      const pausa = 5000 * 3 ** (tentativa - 1); // 5s, 15s, 45s
+      const cabeNoOrcamento = restante() - pausa > MINIMO_PARA_TENTAR_MS;
+
+      if (tentativa < MAX_TENTATIVAS && ehErroTemporario(err) && cabeNoOrcamento) {
+        await espera(pausa);
         continue;
       }
       break;
     }
   }
 
-  const mensagem = ultimoErro instanceof Error ? ultimoErro.message : String(ultimoErro);
-  throw new Error(mensagemParaOUsuario(mensagem));
+  throw new Error(mensagemParaOUsuario(ultimoErro));
 }

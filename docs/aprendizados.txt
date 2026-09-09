@@ -74,7 +74,40 @@ pages_read_user_content no escopo. A pendencia de reconectar as contas estava
 resolvida sem ninguem saber.
 
 
-API DO GEMINI
+SDK DA ANTHROPIC: maxRetries DO SDK MULTIPLICA O SEU LACO
+===========================================================
+Descoberto em 09/09/2026, medindo a troca de volta para o Claude.
+
+O SDK da Anthropic repete a chamada 2 vezes por padrao (maxRetries: 2). O llm.ts
+tem o proprio laco de retentativas, que sabe distinguir erro que melhora esperando
+de erro que nao. As duas camadas se MULTIPLICAM: ate 12 tentativas.
+
+  medido: uma chamada de 35s levou 805s (13 minutos)
+  com maxRetries: 0 -> 33,3s / 34,6s / 36,1s / 37,2s / 33,8s, consistente
+
+Correcao: new Anthropic({ maxRetries: 0 }). Se algum dia o laco proprio sair,
+tirar o maxRetries: 0 junto — senao nao sobra retentativa nenhuma.
+
+Licao geral: antes de somar um laco de retentativa em volta de um SDK, conferir se
+o SDK ja tem um. A maioria tem.
+
+
+TIMEOUT TOTAL, NAO POR TENTATIVA
+==================================
+09/09/2026. Um orcamento por tentativa promete o que a plataforma nao deixa
+cumprir: 4 tentativas de 55s sao 220s+ numa funcao que a Vercel mata em 60s.
+
+O llm.ts usa prazo TOTAL: cada tentativa recebe o tempo que sobrou, e o laco nem
+tenta de novo se o que resta nao der para uma chamada terminar. Assim retentativa
+serve para o que ela resolve de verdade — falha RAPIDA (429, 5xx que voltam em
+segundos).
+
+Detalhe que custou um teste: o SDK diz "Request timed out". A regex /timeout/ NAO
+casa com "timed out", e a mensagem amigavel nao aparecia — o redator recebia o
+erro cru. Ver PADRAO_DE_TIMEOUT no llm.ts.
+
+
+API DO GEMINI (historico — provedor nao mais usado)
 =============
 
 Modelos que aparecem na listagem mas NAO funcionam

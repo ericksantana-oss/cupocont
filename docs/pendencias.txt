@@ -44,27 +44,38 @@ credito de uso e nao mensalidade.
 Destrava: criar a conta e fazer o deposito.
 
 
-[3] Plano pago do Gemini nao contratado
-----------------------------------------
-O plano gratuito nao cobre a operacao. Confirmado em producao: o
-gemini-3.6-flash permite 20 chamadas por DIA e um mes de um cliente consome 24.
+[3] Escolha do modelo do Claude: Opus 5 ou Sonnet 5
+-----------------------------------------------------
+A pendencia do plano pago do Gemini caiu em 09/09/2026: a IA voltou para a
+Anthropic e a chave nova tem credito. Ver decisoes.txt.
 
-Trocar de modelo so muda onde fica o teto, nao remove o teto.
+O que ficou em aberto e QUAL MODELO usar. Custo medido com geracao real:
 
-Custo estimado: US$ 8 a 12/mes para 25 clientes no gemini-3.5-flash.
+  claude-opus-5    US$ 0,12/chamada    ~US$ 74/mes para 25 clientes  (padrao hoje)
+  claude-sonnet-5  ~US$ 0,045/chamada  ~US$ 27/mes para 25 clientes
 
-Destrava: ativar o faturamento no Google AI Studio.
+Para referencia, o plano pago do Gemini custaria US$ 8 a 12/mes.
+
+Troca por CLAUDE_MODEL, sem mexer em codigo. Decisao de negocio: a qualidade vale
+a diferenca? So o piloto do bloqueador [1] responde isso.
+
+Ha tambem CLAUDE_EFFORT (low/medium/high, padrao high) como alivio de custo e de
+tempo dentro do mesmo modelo.
 
 
 DECISOES DE NEGOCIO PENDENTES
 =============================
 
 
-[4] Plano gratuito do Gemini usa o conteudo para treinar?
------------------------------------------------------------
-Briefings e documentos de cliente passam pelos prompts. Vale confirmar nos
-termos do Google se o conteudo enviado no plano gratuito pode ser usado para
-treinar os modelos deles. No plano pago normalmente nao ha esse uso.
+[4] Retencao de dados da Anthropic
+------------------------------------
+Substitui a duvida equivalente sobre o plano gratuito do Gemini, encerrada em
+09/09/2026 junto com a saida daquele provedor.
+
+Briefings e documentos de cliente passam pelos prompts. Vale confirmar nos termos
+da Anthropic o prazo de retencao e se ha uso do conteudo para treino no plano em
+uso. Na API paga normalmente nao ha uso para treino, mas confirmar e barato e a
+duvida e do cliente, nao nossa.
 
 E decisao de negocio, nao tecnica.
 
@@ -79,6 +90,11 @@ Opcoes: Vercel Pro (US$ 20/mes, zero alteracao de codigo) ou Cloudflare
 Containers (US$ 5 a 8/mes, exige containerizar o projeto).
 
 Decisao adiada em 20/08/2026. Continua em aberto.
+
+Nota de 09/09/2026: agora ha um motivo TECNICO alem do risco de uso comercial. A
+geracao de 20 temas leva ~35s medidos e a funcao na Vercel Hobby morre em 60s. A
+folga e de 25s. Prompt maior, contexto maior ou um mes com mais feedback come essa
+folga — e o sintoma sera geracao falhando sem explicacao para o redator.
 
 
 [6] Numeros que faltam para fechar a analise financeira

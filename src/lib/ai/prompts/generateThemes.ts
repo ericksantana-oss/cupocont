@@ -14,6 +14,10 @@ export type SuggestedTheme = {
   justification: string;
 };
 
+// Quantidade fechada de temas por mês. Fonte única: entra no prompt e limita a leitura
+// da resposta, para os dois nunca discordarem.
+const TOTAL_DE_TEMAS = 20;
+
 const SYSTEM_PROMPT = `Você é um estrategista de conteúdo para redes sociais trabalhando para uma agência.
 Sua tarefa é sugerir temas de posts para UM cliente específico, para o mês do briefing informado.
 
@@ -32,7 +36,8 @@ Regras obrigatórias:
   funciona com esta audiência específica. Reaproveite o ÂNGULO, o formato e o recorte que
   performaram — não o assunto em si. Repetir o mesmo tema é erro; repetir o que faz aquele
   público reagir é o objetivo.
-- Gere no MÍNIMO 20 temas distintos, contando os sugeridos pelo redator.
+- Gere EXATAMENTE ${TOTAL_DE_TEMAS} temas distintos, contando os sugeridos pelo redator.
+  Se os sugeridos pelo redator já forem ${TOTAL_DE_TEMAS} ou mais, use só eles e pare em ${TOTAL_DE_TEMAS}.
 
 Responda APENAS com um JSON válido (sem markdown, sem texto antes ou depois), no formato:
 [{"title": "...", "justification": "..."}, ...]
@@ -73,7 +78,11 @@ function parseThemesResponse(raw: string): SuggestedTheme[] {
 
   return parsed
     .filter((item) => typeof item?.title === "string" && typeof item?.justification === "string")
-    .map((item) => ({ title: item.title.trim(), justification: item.justification.trim() }));
+    .map((item) => ({ title: item.title.trim(), justification: item.justification.trim() }))
+    // Corte no código, e não só no prompt: pedido de quantidade exata é instrução, não
+    // garantia — o modelo já devolveu 22 e 24 quando o prompt pedia "no mínimo 20".
+    // Cortar pelo fim é seguro porque os temas sugeridos pelo redator vêm PRIMEIRO.
+    .slice(0, TOTAL_DE_TEMAS);
 }
 
 export async function generateThemes(params: {
