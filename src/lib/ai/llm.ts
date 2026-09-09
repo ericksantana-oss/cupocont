@@ -23,7 +23,10 @@ function getClient(): Anthropic {
   return client;
 }
 
-export const AI_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5";
+// Escolhido em 09/09/2026 pelo Erick, depois de medir os dois: o Sonnet 5 custa cerca de
+// um terço do Opus 5 na operação de 25 clientes. Trocar de volta é só a variável de
+// ambiente — os números medidos estão em docs/decisoes.txt.
+export const AI_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 
 // Esforço de raciocínio. "high" é o padrão da API e o ponto de equilíbrio para conteúdo
 // editorial; "medium" e "low" existem como alívio de custo e de tempo, se preciso.
@@ -119,10 +122,14 @@ export async function askAI(system: string, userMessage: string): Promise<string
           // controlada por effort, não por um teto fixo de tokens de pensamento.
           thinking: { type: "adaptive" },
           output_config: { effort: AI_EFFORT as "low" | "medium" | "high" | "xhigh" | "max" },
-          // O system vai cacheado: ele carrega o contexto do cliente, as regras fixas e o
-          // feedback, que repetem em toda geração do mês. O cache é prefixo, e aqui o
-          // prefixo é justamente a parte estável.
-          system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+          // SEM cache_control aqui, de propósito. Eu tinha colocado achando que cachearia
+          // o contexto do cliente, e MEDI que não: o system destes prompts tem 778 tokens,
+          // abaixo do mínimo cacheável do modelo — o cache era ignorado em silêncio. E os
+          // ~8.000 tokens que valeriam cache (contexto do cliente, regras fixas, feedback)
+          // não estão aqui: vão dentro da mensagem do usuário, montados por
+          // buildUserMessage. Cachear de verdade exige mover esse bloco para cá, o que
+          // muda a estrutura do prompt e mexe com qualidade. Ver docs/pendencias.txt.
+          system,
           messages: [{ role: "user", content: userMessage }],
         },
         { timeout: restante() }

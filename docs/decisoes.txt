@@ -13,25 +13,27 @@ entao a volta mexeu num arquivo so mais o .env. @google/genai saiu do projeto,
 Motivo da volta: decisao do Erick. O motivo da ida — conta sem saldo — nao vale
 mais: a chave nova responde e tem credito.
 
-Modelo padrao: claude-opus-5, configuravel por CLAUDE_MODEL.
+Modelo padrao: claude-sonnet-5, escolhido pelo Erick em 09/09/2026 depois de medir os
+dois lado a lado no mesmo prompt. Configuravel por CLAUDE_MODEL.
 
-CUSTO, MEDIDO e nao estimado (09/09/2026, geracao real de 20 temas com o contexto
-do Etmos: 8.116 tokens de entrada, 2.895 de saida):
+CUSTO, MEDIDO nos dois modelos no MESMO prompt (geracao real de 20 temas com o
+contexto do Etmos, ~8.000 tokens de entrada):
 
-  US$ 0,12 por chamada
-  US$ 2,95 por cliente/mes  (24 chamadas: 20 temas + 12 posts + 2 e-mails)
-  US$ 74 por mes para 25 clientes
+  claude-sonnet-5   29,3s   saida 2.645 tok   US$ 0,047/chamada   US$ 28/mes (25 clientes)
+  claude-opus-5     32,3s   saida 2.222 tok   US$ 0,106/chamada   US$ 64/mes (25 clientes)
 
-Comparacao honesta: o plano pago do Gemini custaria US$ 8 a 12/mes para os mesmos
-25 clientes. Opus 5 e ~6x a 9x mais caro. Em claude-sonnet-5 cai para ~US$ 27/mes.
-A escolha do modelo e de negocio, nao tecnica — o codigo aceita os dois por
-variavel de ambiente.
+Os dois devolveram exatamente 20 temas. O Sonnet pensou MAIS (918 tokens de
+pensamento contra 253) e ainda saiu mais barato e um pouco mais rapido.
 
-O system prompt vai com cache_control: o contexto do cliente, as regras fixas e o
-feedback repetem em toda geracao do mes e sao a parte estavel do prefixo. A
-primeira chamada paga a escrita do cache (1,25x); as seguintes leem a 0,1x.
+Referencia: o plano pago do Gemini custaria US$ 8 a 12/mes. O Sonnet 5 e ~2,5x
+isso; o Opus 5 seria ~6x.
 
-LATENCIA: ~35s para os 20 temas, medida 5 vezes (33,3s a 37,2s). Cabe no orcamento
+Cache de prompt NAO esta ativo — ver pendencias.txt. Tentei ligar e medi que nao
+funcionava: o system destes prompts tem 778 tokens, abaixo do minimo cacheavel, e
+os ~8.000 tokens que valeriam cache vao na mensagem do usuario. O cache_control
+foi removido para o codigo nao prometer o que nao entrega.
+
+LATENCIA: ~29s no Sonnet 5 e ~33s no Opus 5 para os 20 temas. Cabe no orcamento
 de 55s do codigo, mas deixa pouca folga para o limite de 60s da funcao na Vercel
 Hobby. Se comecar a estourar, os remedios sao CLAUDE_EFFORT=medium ou subir o
 plano — nao aumentar o timeout, que a plataforma ignora.

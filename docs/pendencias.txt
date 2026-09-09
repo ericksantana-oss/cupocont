@@ -44,23 +44,30 @@ credito de uso e nao mensalidade.
 Destrava: criar a conta e fazer o deposito.
 
 
-[3] Escolha do modelo do Claude: Opus 5 ou Sonnet 5
------------------------------------------------------
-A pendencia do plano pago do Gemini caiu em 09/09/2026: a IA voltou para a
-Anthropic e a chave nova tem credito. Ver decisoes.txt.
+[3] Cache de prompt nao esta ativo — deixa ~30% na mesa
+---------------------------------------------------------
+A escolha do modelo, que era esta pendencia, foi resolvida em 09/09/2026:
+claude-sonnet-5. Ver decisoes.txt com os numeros medidos dos dois.
 
-O que ficou em aberto e QUAL MODELO usar. Custo medido com geracao real:
+O que ficou no lugar dela: cache de prompt.
 
-  claude-opus-5    US$ 0,12/chamada    ~US$ 74/mes para 25 clientes  (padrao hoje)
-  claude-sonnet-5  ~US$ 0,045/chamada  ~US$ 27/mes para 25 clientes
+Medido em 09/09/2026:
+  system prompt dos temas         778 tokens   (abaixo do minimo cacheavel)
+  contexto do cliente + regras  7.966 tokens   (vai na mensagem do USUARIO)
 
-Para referencia, o plano pago do Gemini custaria US$ 8 a 12/mes.
+O contexto do cliente e a parte que repete em toda geracao do mes — e e 91% da
+entrada. Cachear ele derrubaria o custo dessa parte de 2,00 para 0,20 por milhao
+de tokens. Nas 12 geracoes de texto de um cliente, que compartilham o mesmo
+contexto, isso vale algo entre US$ 6 e 9 por mes nos 25 clientes, de US$ 28.
 
-Troca por CLAUDE_MODEL, sem mexer em codigo. Decisao de negocio: a qualidade vale
-a diferenca? So o piloto do bloqueador [1] responde isso.
+O que impede: o contexto e montado dentro de buildUserMessage, na mensagem do
+usuario. Cachear exige move-lo para o system, e isso muda a ESTRUTURA do prompt —
+que mexe com qualidade, o bloqueador [1]. Nao vale fazer as cegas antes do piloto.
 
-Ha tambem CLAUDE_EFFORT (low/medium/high, padrao high) como alivio de custo e de
-tempo dentro do mesmo modelo.
+Ordem certa: piloto primeiro (com o prompt como esta), cache depois, medindo
+qualidade antes e depois. Cache tem janela de 5 minutos, entao o ganho tambem
+depende de as geracoes de um cliente acontecerem na mesma sessao — vale conferir
+isso no log de atividade antes de investir.
 
 
 DECISOES DE NEGOCIO PENDENTES
